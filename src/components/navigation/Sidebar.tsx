@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabaseClient';
 import type { Community } from '../../utils/supabaseClient';
+import Logo from '../common/Logo';
 
 interface SidebarProps {
   toggleNotifications: () => void;
@@ -90,9 +91,9 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
       className="fixed top-0 left-0 h-full w-[280px] bg-secondary border-r border-surface-blur backdrop-blur-lg z-10"
     >
       <div className="p-5">
-        <h1 className="text-2xl font-heading text-accent-1 mb-8 flex items-center">
-          <span className="mr-2">⬢</span> NeoByte
-        </h1>
+        <div className="mb-8">
+          <Logo size="md" />
+        </div>
         
         <div className="relative mb-6">
           <Search className="absolute left-3 top-3 text-text-secondary" size={18} />

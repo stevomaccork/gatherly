@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="200" viewBox="0 0 800 200" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <g>
+    <!-- Logo Icon -->
+    <g transform="translate(0, 0)">
+      <!-- Circle of people around globe -->
+      <circle cx="100" cy="100" r="90" fill="none" stroke="#17bebb" stroke-width="2"/>
+      <!-- Globe -->
+      <circle cx="100" cy="100" r="45" fill="#17bebb" opacity="0.9"/>
+      <path d="M 70 80 Q 100 120 130 80 M 80 70 Q 100 40 120 70" stroke="#ffffff" stroke-width="2" fill="none"/>
+      <!-- People figures -->
+      <circle cx="100" cy="25" r="15" fill="#fad8d6"/>
+      <path d="M 90 40 L 110 40" stroke="#fad8d6" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="175" cy="100" r="15" fill="#cd5334"/>
+      <path d="M 165 115 L 185 115" stroke="#cd5334" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="100" cy="175" r="15" fill="#edb88b"/>
+      <path d="M 90 190 L 110 190" stroke="#edb88b" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="25" cy="100" r="15" fill="#17bebb"/>
+      <path d="M 15 115 L 35 115" stroke="#17bebb" stroke-width="10" stroke-linecap="round"/>
+    </g>
+    
+    <!-- Text "Gatherly" -->
+    <text x="250" y="120" font-family="Orbitron" font-size="80" font-weight="bold" fill="#2e282a" stroke="#2e282a" stroke-width="1">
+      Gatherly
+    </text>
+  </g>
+</svg> 
