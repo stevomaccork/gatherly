@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Filter, Users, Calendar, MapPin, X } from 'lucide-react';
+import { Search, Filter, Users, Calendar, MapPin, X, 
+  TrendingUp, Clock, Globe, Target, Zap, 
+  Activity, UserCheck, MessageSquare, Award
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import type { Community, Category } from '../utils/supabaseClient';
@@ -16,7 +19,40 @@ const DiscoverPage: React.FC = () => {
   const [city, setCity] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'closest'>('popular');
+  const [sortBy, setSortBy] = useState<
+    'popular' | 'newest' | 'closest' | 'mostActive' | 'trending' | 'recommended'
+  >('popular');
+  const [filters, setFilters] = useState({
+    size: {
+      small: false, // < 100 members
+      medium: false, // 100-1000 members
+      large: false, // > 1000 members
+    },
+    activity: {
+      veryActive: false, // Multiple posts per day
+      active: false, // Few posts per week
+      casual: false, // Few posts per month
+    },
+    type: {
+      public: true,
+      private: false,
+    },
+    joinPolicy: {
+      open: true,
+      approval: false,
+    },
+    features: {
+      events: false,
+      discussions: false,
+      mentorship: false,
+      resources: false,
+    },
+    engagement: {
+      newbie: false, // < 3 months old
+      established: false, // 3-12 months old
+      veteran: false, // > 12 months old
+    }
+  });
 
   useEffect(() => {
     fetchCategories();
@@ -133,6 +169,305 @@ const DiscoverPage: React.FC = () => {
   const getSubcategories = (parentId: string) =>
     categories.filter(cat => cat.parent_id === parentId);
 
+  const renderFilterPanel = () => (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      className="glass-panel p-6 mb-6"
+    >
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-lg font-bold">Filters</h3>
+        <button
+          className="text-text-secondary hover:text-accent-1"
+          onClick={clearFilters}
+        >
+          Clear all
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div>
+          <h4 className="font-bold mb-3">Categories</h4>
+          <div className="space-y-4">
+            {mainCategories.map(mainCat => (
+              <div key={mainCat.id}>
+                <button
+                  className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
+                    selectedCategories.includes(mainCat.id)
+                      ? 'bg-accent-1 text-primary'
+                      : 'hover:bg-surface-blur'
+                  }`}
+                  onClick={() => toggleCategory(mainCat.id)}
+                >
+                  {mainCat.name}
+                </button>
+                <div className="ml-4 mt-2 flex flex-wrap gap-2">
+                  {getSubcategories(mainCat.id).map(subCat => (
+                    <button
+                      key={subCat.id}
+                      className={`px-3 py-1 rounded-full text-sm ${
+                        selectedCategories.includes(subCat.id)
+                          ? 'bg-accent-1 text-primary'
+                          : 'bg-surface-blur text-text-secondary hover:text-text-primary'
+                      }`}
+                      onClick={() => toggleCategory(subCat.id)}
+                    >
+                      {subCat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h4 className="font-bold mb-3">Community Size</h4>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filters.size.small}
+                onChange={() => toggleFilter('size', 'small')}
+                className="form-checkbox"
+              />
+              <span>Small (<100 members)</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filters.size.medium}
+                onChange={() => toggleFilter('size', 'medium')}
+                className="form-checkbox"
+              />
+              <span>Medium (100-1000 members)</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filters.size.large}
+                onChange={() => toggleFilter('size', 'large')}
+                className="form-checkbox"
+              />
+              <span>Large (>1000 members)</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="font-bold mb-3">Activity Level</h4>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filters.activity.veryActive}
+                onChange={() => toggleFilter('activity', 'veryActive')}
+                className="form-checkbox"
+              />
+              <span>Very Active</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filters.activity.active}
+                onChange={() => toggleFilter('activity', 'active')}
+                className="form-checkbox"
+              />
+              <span>Active</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filters.activity.casual}
+                onChange={() => toggleFilter('activity', 'casual')}
+                className="form-checkbox"
+              />
+              <span>Casual</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="font-bold mb-3">Location</h4>
+          <div className="space-y-4">
+            <div className="relative">
+              <MapPin className="absolute left-3 top-3 text-text-secondary" size={18} />
+              <input
+                type="text"
+                placeholder="Country"
+                className="input-neon w-full pl-10"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+              />
+            </div>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-3 text-text-secondary" size={18} />
+              <input
+                type="text"
+                placeholder="City"
+                className="input-neon w-full pl-10"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="font-bold mb-3">Features</h4>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filters.features.events}
+                onChange={() => toggleFilter('features', 'events')}
+                className="form-checkbox"
+              />
+              <span>Events</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filters.features.discussions}
+                onChange={() => toggleFilter('features', 'discussions')}
+                className="form-checkbox"
+              />
+              <span>Active Discussions</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filters.features.mentorship}
+                onChange={() => toggleFilter('features', 'mentorship')}
+                className="form-checkbox"
+              />
+              <span>Mentorship Program</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filters.features.resources}
+                onChange={() => toggleFilter('features', 'resources')}
+                className="form-checkbox"
+              />
+              <span>Learning Resources</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="font-bold mb-3">Community Age</h4>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filters.engagement.newbie}
+                onChange={() => toggleFilter('engagement', 'newbie')}
+                className="form-checkbox"
+              />
+              <span>New Communities (<3 months)</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filters.engagement.established}
+                onChange={() => toggleFilter('engagement', 'established')}
+                className="form-checkbox"
+              />
+              <span>Established (3-12 months)</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={filters.engagement.veteran}
+                onChange={() => toggleFilter('engagement', 'veteran')}
+                className="form-checkbox"
+              />
+              <span>Veteran (>1 year)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  const renderSortOptions = () => (
+    <select
+      className="bg-surface-blur text-text-secondary px-4 py-2 rounded-full text-sm"
+      value={sortBy}
+      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+    >
+      <option value="recommended">Recommended for You</option>
+      <option value="popular">Most Popular</option>
+      <option value="trending">Trending</option>
+      <option value="mostActive">Most Active</option>
+      <option value="newest">Newest</option>
+      <option value="closest">Closest to You</option>
+    </select>
+  );
+
+  const renderQuickFilters = () => (
+    <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+      <button
+        className="px-3 py-1 rounded-full bg-surface-blur text-text-secondary text-sm whitespace-nowrap hover:bg-accent-1 hover:text-primary transition-all"
+        onClick={() => quickFilter('trending')}
+      >
+        <TrendingUp size={14} className="inline-block mr-1" />
+        Trending Now
+      </button>
+      <button
+        className="px-3 py-1 rounded-full bg-surface-blur text-text-secondary text-sm whitespace-nowrap hover:bg-accent-1 hover:text-primary transition-all"
+        onClick={() => quickFilter('newToday')}
+      >
+        <Zap size={14} className="inline-block mr-1" />
+        New Today
+      </button>
+      <button
+        className="px-3 py-1 rounded-full bg-surface-blur text-text-secondary text-sm whitespace-nowrap hover:bg-accent-1 hover:text-primary transition-all"
+        onClick={() => quickFilter('nearMe')}
+      >
+        <Target size={14} className="inline-block mr-1" />
+        Near Me
+      </button>
+      <button
+        className="px-3 py-1 rounded-full bg-surface-blur text-text-secondary text-sm whitespace-nowrap hover:bg-accent-1 hover:text-primary transition-all"
+        onClick={() => quickFilter('mostActive')}
+      >
+        <Activity size={14} className="inline-block mr-1" />
+        Most Active
+      </button>
+      <button
+        className="px-3 py-1 rounded-full bg-surface-blur text-text-secondary text-sm whitespace-nowrap hover:bg-accent-1 hover:text-primary transition-all"
+        onClick={() => quickFilter('openToAll')}
+      >
+        <UserCheck size={14} className="inline-block mr-1" />
+        Open to All
+      </button>
+      <button
+        className="px-3 py-1 rounded-full bg-surface-blur text-text-secondary text-sm whitespace-nowrap hover:bg-accent-1 hover:text-primary transition-all"
+        onClick={() => quickFilter('withEvents')}
+      >
+        <Calendar size={14} className="inline-block mr-1" />
+        With Events
+      </button>
+      <button
+        className="px-3 py-1 rounded-full bg-surface-blur text-text-secondary text-sm whitespace-nowrap hover:bg-accent-1 hover:text-primary transition-all"
+        onClick={() => quickFilter('activeDiscussions')}
+      >
+        <MessageSquare size={14} className="inline-block mr-1" />
+        Active Discussions
+      </button>
+      <button
+        className="px-3 py-1 rounded-full bg-surface-blur text-text-secondary text-sm whitespace-nowrap hover:bg-accent-1 hover:text-primary transition-all"
+        onClick={() => quickFilter('featured')}
+      >
+        <Award size={14} className="inline-block mr-1" />
+        Featured
+      </button>
+    </div>
+  );
+
   return (
     <>
       <div className="mb-8">
@@ -150,6 +485,8 @@ const DiscoverPage: React.FC = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+
+        {renderQuickFilters()}
 
         <div className="flex items-center gap-3 mb-4">
           <button
@@ -179,98 +516,10 @@ const DiscoverPage: React.FC = () => {
             })}
           </div>
 
-          <select
-            className="bg-surface-blur text-text-secondary px-4 py-2 rounded-full text-sm"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-          >
-            <option value="popular">Most Popular</option>
-            <option value="newest">Newest</option>
-            <option value="closest">Closest</option>
-          </select>
+          {renderSortOptions()}
         </div>
 
-        {showFilters && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="glass-panel p-6 mb-6"
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Filters</h3>
-              <button
-                className="text-text-secondary hover:text-accent-1"
-                onClick={clearFilters}
-              >
-                Clear all
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-bold mb-3">Categories</h4>
-                <div className="space-y-4">
-                  {mainCategories.map(mainCat => (
-                    <div key={mainCat.id}>
-                      <button
-                        className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
-                          selectedCategories.includes(mainCat.id)
-                            ? 'bg-accent-1 text-primary'
-                            : 'hover:bg-surface-blur'
-                        }`}
-                        onClick={() => toggleCategory(mainCat.id)}
-                      >
-                        {mainCat.name}
-                      </button>
-                      <div className="ml-4 mt-2 flex flex-wrap gap-2">
-                        {getSubcategories(mainCat.id).map(subCat => (
-                          <button
-                            key={subCat.id}
-                            className={`px-3 py-1 rounded-full text-sm ${
-                              selectedCategories.includes(subCat.id)
-                                ? 'bg-accent-1 text-primary'
-                                : 'bg-surface-blur text-text-secondary hover:text-text-primary'
-                            }`}
-                            onClick={() => toggleCategory(subCat.id)}
-                          >
-                            {subCat.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-bold mb-3">Location</h4>
-                <div className="space-y-4">
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3 text-text-secondary" size={18} />
-                    <input
-                      type="text"
-                      placeholder="Country"
-                      className="input-neon w-full pl-10"
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                    />
-                  </div>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3 text-text-secondary" size={18} />
-                    <input
-                      type="text"
-                      placeholder="City"
-                      className="input-neon w-full pl-10"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
+        {showFilters && renderFilterPanel()}
       </div>
       
       {isLoading ? (

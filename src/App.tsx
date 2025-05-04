@@ -25,11 +25,12 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { UIProvider } from './contexts/UIContext';
 import { AuthProvider } from './contexts/AuthContext';
 
-function App() {
+const App: React.FC = () => {
   return (
     <Router>
       <ErrorBoundary>
         <UIProvider>
+<<<<<<< Updated upstream
           <ErrorBoundary>
             <AuthProvider>
               <ErrorBoundary>
@@ -54,10 +55,34 @@ function App() {
               </ErrorBoundary>
             </AuthProvider>
           </ErrorBoundary>
+=======
+          <AuthProvider>
+            <div className="min-h-screen bg-white">
+              <AnimatePresence mode="wait">
+                <Routes>
+                  <Route path="/auth" element={<AuthPage />} />
+                  <Route path="/" element={<MainLayout />}>
+                    <Route index element={<DiscoverPage />} />
+                    <Route path="community/create" element={<CreateCommunityPage />} />
+                    <Route path="community/:id" element={<CommunityPage />} />
+                    <Route path="thread/:id" element={<ThreadPage />} />
+                    <Route path="event/:id" element={<EventPage />} />
+                    <Route path="events" element={<EventsPage />} />
+                    <Route path="dashboard" element={<DashboardPage />} />
+                    <Route path="profile/:username" element={<ProfilePage />} />
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="messages" element={<MessagesPage />} />
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Route>
+                </Routes>
+              </AnimatePresence>
+            </div>
+          </AuthProvider>
+>>>>>>> Stashed changes
         </UIProvider>
       </ErrorBoundary>
     </Router>
   );
-}
+};
 
 export default App;

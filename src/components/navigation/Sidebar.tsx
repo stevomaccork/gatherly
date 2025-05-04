@@ -16,8 +16,61 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabaseClient';
+<<<<<<< Updated upstream
 import type { Community } from '../../utils/supabaseClient';
 import Logo from '../common/Logo';
+=======
+import { useUI } from '../../contexts/UIContext';
+
+// Define the base Community type
+interface Community {
+  id: string;
+  name: string;
+  description: string | null;
+  cover_image: string | null;
+  created_at: string;
+  created_by: string | null;
+  country: string | null;
+  city: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  social_links?: {
+    website?: string;
+    twitter?: string;
+    facebook?: string;
+    instagram?: string;
+    youtube?: string;
+  } | null;
+}
+
+// Define the community with member count
+interface CommunityWithCount extends Community {
+  community_members: Array<{ count: number }>;
+}
+
+// First, define the exact type that matches the Supabase response
+interface SupabaseCommunityResponse {
+  community: {
+    id: string;
+    name: string;
+    description: string | null;
+    cover_image: string | null;
+    created_at: string;
+    created_by: string | null;
+    country: string | null;
+    city: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    social_links?: {
+      website?: string;
+      twitter?: string;
+      facebook?: string;
+      instagram?: string;
+      youtube?: string;
+    } | null;
+  };
+}
+>>>>>>> Stashed changes
 
 interface SidebarProps {
   toggleNotifications: () => void;
@@ -27,10 +80,13 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, profile, user } = useAuth();
+  const { isMobile } = useUI();
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<Community[]>([]);
+  const [searchResults, setSearchResults] = useState<CommunityWithCount[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const isActive = (path: string): boolean => {
     return location.pathname === path;
@@ -49,15 +105,12 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
       try {
         const { data, error } = await supabase
           .from('communities')
-          .select(`
-            *,
-            community_members (count)
-          `)
+          .select('*, community_members(count)')
           .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
           .limit(5);
 
         if (error) throw error;
-        setSearchResults(data || []);
+        setSearchResults(data as CommunityWithCount[] || []);
       } catch (error) {
         console.error('Error searching communities:', error);
       } finally {
@@ -78,17 +131,80 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
     };
   }, [searchTerm]);
 
+  useEffect(() => {
+    if (user) {
+      fetchUserCommunities();
+    } else {
+      setCommunities([]);
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  const fetchUserCommunities = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('community_members')
+        .select('community:communities(*)') // This returns the nested community object
+        .eq('profile_id', user.id)
+        .eq('status', 'approved');
+
+      if (error) throw error;
+
+      // Properly type and transform the data
+      const typedData = (data || []) as unknown as SupabaseCommunityResponse[];
+      const validCommunities = typedData
+        .map(item => item.community)
+        .filter((community): community is Community => {
+          return Boolean(
+            community &&
+            typeof community === 'object' &&
+            'id' in community &&
+            'name' in community &&
+            typeof community.id === 'string' &&
+            typeof community.name === 'string'
+          );
+        });
+      
+      setCommunities(validCommunities);
+    } catch (error) {
+      console.error('Error fetching communities:', error);
+      setCommunities([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSearchSelect = (communityId: string) => {
     setSearchTerm('');
     setShowSearchResults(false);
     navigate(`/community/${communityId}`);
   };
 
+  if (isLoading) {
+    return (
+      <motion.div 
+        initial={{ x: isMobile ? -280 : 0 }}
+        animate={{ x: 0 }}
+        className={`fixed top-0 left-0 h-full w-[280px] bg-secondary border-r border-surface-blur backdrop-blur-lg z-10 ${
+          isMobile ? 'transform transition-transform' : ''
+        }`}
+      >
+        <div className="p-5">
+          <div className="animate-pulse">Loading...</div>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div 
-      initial={{ x: -280 }}
+      initial={{ x: isMobile ? -280 : 0 }}
       animate={{ x: 0 }}
-      className="fixed top-0 left-0 h-full w-[280px] bg-secondary border-r border-surface-blur backdrop-blur-lg z-10"
+      className={`fixed top-0 left-0 h-full w-[280px] bg-secondary border-r border-surface-blur backdrop-blur-lg z-10 ${
+        isMobile ? 'transform transition-transform' : ''
+      }`}
     >
       <div className="p-5">
         <div className="mb-8">
@@ -231,6 +347,21 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
             </div>
           </Link>
         )}
+
+        <div className="communities-list mt-6">
+          {communities.map(community => (
+            <Link
+              key={community.id}
+              to={`/community/${community.id}`}
+              className="community-item p-3 hover:bg-surface-blur block"
+            >
+              <h3 className="font-bold">{community.name}</h3>
+              {community.description && (
+                <p className="text-sm text-text-secondary">{community.description}</p>
+              )}
+            </Link>
+          ))}
+        </div>
       </div>
       
       <div className="absolute bottom-5 left-5 right-5">

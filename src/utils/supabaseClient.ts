@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, User } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -29,9 +29,6 @@ export type Profile = {
   updated_at: string;
   country: string | null;
   city: string | null;
-  follower_count?: number;
-  following_count?: number;
-  is_following?: boolean;
 };
 
 export type UserRelationship = {
@@ -52,7 +49,7 @@ export type Category = {
   created_at: string;
 };
 
-export type Community = {
+export interface Community {
   id: string;
   name: string;
   description: string | null;
@@ -63,6 +60,7 @@ export type Community = {
   city: string | null;
   latitude: number | null;
   longitude: number | null;
+<<<<<<< Updated upstream
   members_count?: number;
   events?: Array<Event>;
   categories?: Category[];
@@ -74,6 +72,16 @@ export type Community = {
   } | null;
   community_members?: Array<{ count: number }>;
 };
+=======
+  social_links?: {
+    website?: string;
+    twitter?: string;
+    facebook?: string;
+    instagram?: string;
+    youtube?: string;
+  } | null;
+}
+>>>>>>> Stashed changes
 
 export type Thread = {
   id: string;
@@ -129,12 +137,15 @@ export type EventAttendee = {
   created_at: string;
 };
 
+<<<<<<< Updated upstream
 // First, let's define our base types clearly
 interface ProfileData {
   username: string;
   avatar_url: string | null;
 }
 
+=======
+>>>>>>> Stashed changes
 export interface CommunityMember {
   community_id: string;
   profile_id: string;
@@ -142,7 +153,10 @@ export interface CommunityMember {
   joined_at: string;
   status: 'pending' | 'approved' | 'rejected' | 'banned';
   is_admin: boolean;
+<<<<<<< Updated upstream
   profiles: ProfileData;
+=======
+>>>>>>> Stashed changes
 }
 
 export type Message = {
@@ -175,13 +189,13 @@ export type Conversation = {
   };
 };
 
-export const followUser = async (followingId: string) => {
+export const followUser = async (followingId: string, currentUser: User) => {
   const { data, error } = await supabase
     .from('user_relationships')
     .insert({
-      follower_id: supabase.auth.getUser().then(({ data }) => data.user?.id),
+      follower_id: currentUser.id,
       following_id: followingId,
-      status: 'accepted' // Auto-accept for now, can be changed to 'pending' for approval flow
+      status: 'accepted'
     })
     .select()
     .single();
@@ -288,6 +302,7 @@ export const getMembers = async (communityId: string): Promise<CommunityMember[]
 
   const { data, error } = await supabase
     .from('community_members')
+<<<<<<< Updated upstream
     .select(`
       community_id,
       profile_id,
@@ -302,6 +317,10 @@ export const getMembers = async (communityId: string): Promise<CommunityMember[]
     `)
     .eq('community_id', communityId)
     .returns<DbResponse[]>();
+=======
+    .select('*')
+    .eq('community_id', communityId);
+>>>>>>> Stashed changes
 
   if (error) throw error;
   return data || [];
@@ -458,4 +477,15 @@ export const toggleReplyLike = async (replyId: string): Promise<boolean> => {
     if (error) throw error;
     return true;
   }
+};
+
+export const getUserCommunities = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('community_members')
+    .select('community:communities(*)')
+    .eq('profile_id', userId)
+    .eq('status', 'approved');
+
+  if (error) throw error;
+  return data;
 };
