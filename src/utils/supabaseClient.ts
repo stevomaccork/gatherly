@@ -60,28 +60,19 @@ export interface Community {
   city: string | null;
   latitude: number | null;
   longitude: number | null;
-<<<<<<< Updated upstream
   members_count?: number;
   events?: Array<Event>;
   categories?: Category[];
-  social_links?: {
-    instagram?: string;
-    twitter?: string;
-    discord?: string;
-    facebook?: string;
-  } | null;
-  community_members?: Array<{ count: number }>;
-};
-=======
   social_links?: {
     website?: string;
     twitter?: string;
     facebook?: string;
     instagram?: string;
     youtube?: string;
+    discord?: string;
   } | null;
+  community_members?: Array<{ count: number }>;
 }
->>>>>>> Stashed changes
 
 export type Thread = {
   id: string;
@@ -137,15 +128,12 @@ export type EventAttendee = {
   created_at: string;
 };
 
-<<<<<<< Updated upstream
 // First, let's define our base types clearly
 interface ProfileData {
   username: string;
   avatar_url: string | null;
 }
 
-=======
->>>>>>> Stashed changes
 export interface CommunityMember {
   community_id: string;
   profile_id: string;
@@ -153,10 +141,7 @@ export interface CommunityMember {
   joined_at: string;
   status: 'pending' | 'approved' | 'rejected' | 'banned';
   is_admin: boolean;
-<<<<<<< Updated upstream
   profiles: ProfileData;
-=======
->>>>>>> Stashed changes
 }
 
 export type Message = {
@@ -302,7 +287,6 @@ export const getMembers = async (communityId: string): Promise<CommunityMember[]
 
   const { data, error } = await supabase
     .from('community_members')
-<<<<<<< Updated upstream
     .select(`
       community_id,
       profile_id,
@@ -317,10 +301,6 @@ export const getMembers = async (communityId: string): Promise<CommunityMember[]
     `)
     .eq('community_id', communityId)
     .returns<DbResponse[]>();
-=======
-    .select('*')
-    .eq('community_id', communityId);
->>>>>>> Stashed changes
 
   if (error) throw error;
   return data || [];

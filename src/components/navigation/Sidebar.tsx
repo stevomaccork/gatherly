@@ -16,61 +16,17 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabaseClient';
-<<<<<<< Updated upstream
 import type { Community } from '../../utils/supabaseClient';
-import Logo from '../common/Logo';
-=======
 import { useUI } from '../../contexts/UIContext';
+import Logo from '../common/Logo';
 
-// Define the base Community type
-interface Community {
-  id: string;
-  name: string;
-  description: string | null;
-  cover_image: string | null;
-  created_at: string;
-  created_by: string | null;
-  country: string | null;
-  city: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  social_links?: {
-    website?: string;
-    twitter?: string;
-    facebook?: string;
-    instagram?: string;
-    youtube?: string;
-  } | null;
-}
-
-// Define the community with member count
 interface CommunityWithCount extends Community {
   community_members: Array<{ count: number }>;
 }
 
-// First, define the exact type that matches the Supabase response
 interface SupabaseCommunityResponse {
-  community: {
-    id: string;
-    name: string;
-    description: string | null;
-    cover_image: string | null;
-    created_at: string;
-    created_by: string | null;
-    country: string | null;
-    city: string | null;
-    latitude: number | null;
-    longitude: number | null;
-    social_links?: {
-      website?: string;
-      twitter?: string;
-      facebook?: string;
-      instagram?: string;
-      youtube?: string;
-    } | null;
-  };
+  community: Community;
 }
->>>>>>> Stashed changes
 
 interface SidebarProps {
   toggleNotifications: () => void;
