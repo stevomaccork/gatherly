@@ -9,6 +9,45 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../utils/supabaseClient';
 import type { Community, Category } from '../utils/supabaseClient';
 
+interface Filters {
+  size: {
+    small: boolean;
+    medium: boolean;
+    large: boolean;
+  };
+  activity: {
+    veryActive: boolean;
+    active: boolean;
+    casual: boolean;
+  };
+  type: {
+    public: boolean;
+    private: boolean;
+  };
+  joinPolicy: {
+    open: boolean;
+    approval: boolean;
+  };
+  features: {
+    events: boolean;
+    discussions: boolean;
+    mentorship: boolean;
+    resources: boolean;
+  };
+  engagement: {
+    newbie: boolean;
+    established: boolean;
+    veteran: boolean;
+  };
+}
+
+type FilterSection = keyof Filters;
+type FilterValue = {
+  [K in FilterSection]: keyof Filters[K];
+}[FilterSection];
+
+type QuickFilterType = 'trending' | 'newToday' | 'nearMe' | 'mostActive' | 'openToAll' | 'withEvents' | 'activeDiscussions' | 'featured';
+
 const DiscoverPage: React.FC = () => {
   const { user, profile } = useAuth();
   const [communities, setCommunities] = useState<Community[]>([]);
@@ -22,16 +61,16 @@ const DiscoverPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<
     'popular' | 'newest' | 'closest' | 'mostActive' | 'trending' | 'recommended'
   >('popular');
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<Filters>({
     size: {
-      small: false, // < 100 members
-      medium: false, // 100-1000 members
-      large: false, // > 1000 members
+      small: false,
+      medium: false,
+      large: false,
     },
     activity: {
-      veryActive: false, // Multiple posts per day
-      active: false, // Few posts per week
-      casual: false, // Few posts per month
+      veryActive: false,
+      active: false,
+      casual: false,
     },
     type: {
       public: true,
@@ -48,9 +87,9 @@ const DiscoverPage: React.FC = () => {
       resources: false,
     },
     engagement: {
-      newbie: false, // < 3 months old
-      established: false, // 3-12 months old
-      veteran: false, // > 12 months old
+      newbie: false,
+      established: false,
+      veteran: false,
     }
   });
 
@@ -153,6 +192,16 @@ const DiscoverPage: React.FC = () => {
     );
   };
 
+  const toggleFilter = (section: FilterSection, value: FilterValue) => {
+    setFilters(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [value]: !prev[section][value as keyof typeof prev[typeof section]]
+      }
+    }));
+  };
+
   const clearFilters = () => {
     setSelectedCategories([]);
     setCountry('');
@@ -168,6 +217,63 @@ const DiscoverPage: React.FC = () => {
   const mainCategories = categories.filter(cat => !cat.parent_id);
   const getSubcategories = (parentId: string) =>
     categories.filter(cat => cat.parent_id === parentId);
+
+  const quickFilter = (type: QuickFilterType) => {
+    // Reset all filters first
+    setFilters({
+      size: { small: false, medium: false, large: false },
+      activity: { veryActive: false, active: false, casual: false },
+      type: { public: true, private: false },
+      joinPolicy: { open: true, approval: false },
+      features: { events: false, discussions: false, mentorship: false, resources: false },
+      engagement: { newbie: false, established: false, veteran: false }
+    });
+
+    // Apply specific filter based on type
+    switch (type) {
+      case 'trending':
+        setSortBy('trending');
+        break;
+      case 'newToday':
+        setSortBy('newest');
+        setFilters(prev => ({
+          ...prev,
+          engagement: { ...prev.engagement, newbie: true }
+        }));
+        break;
+      case 'nearMe':
+        setSortBy('closest');
+        break;
+      case 'mostActive':
+        setSortBy('mostActive');
+        setFilters(prev => ({
+          ...prev,
+          activity: { ...prev.activity, veryActive: true }
+        }));
+        break;
+      case 'openToAll':
+        setFilters(prev => ({
+          ...prev,
+          joinPolicy: { ...prev.joinPolicy, open: true, approval: false }
+        }));
+        break;
+      case 'withEvents':
+        setFilters(prev => ({
+          ...prev,
+          features: { ...prev.features, events: true }
+        }));
+        break;
+      case 'activeDiscussions':
+        setFilters(prev => ({
+          ...prev,
+          features: { ...prev.features, discussions: true }
+        }));
+        break;
+      case 'featured':
+        setSortBy('popular');
+        break;
+    }
+  };
 
   const renderFilterPanel = () => (
     <motion.div
@@ -232,7 +338,7 @@ const DiscoverPage: React.FC = () => {
                 onChange={() => toggleFilter('size', 'small')}
                 className="form-checkbox"
               />
-              <span>Small (<100 members)</span>
+              <span>Small ({'<'}100 members)</span>
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -250,7 +356,7 @@ const DiscoverPage: React.FC = () => {
                 onChange={() => toggleFilter('size', 'large')}
                 className="form-checkbox"
               />
-              <span>Large (>1000 members)</span>
+              <span>Large ({'>'}1000 members)</span>
             </label>
           </div>
         </div>
@@ -366,7 +472,7 @@ const DiscoverPage: React.FC = () => {
                 onChange={() => toggleFilter('engagement', 'newbie')}
                 className="form-checkbox"
               />
-              <span>New Communities (<3 months)</span>
+              <span>New Communities ({'<'}3 months)</span>
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -384,7 +490,7 @@ const DiscoverPage: React.FC = () => {
                 onChange={() => toggleFilter('engagement', 'veteran')}
                 className="form-checkbox"
               />
-              <span>Veteran (>1 year)</span>
+              <span>Veteran ({'>'}1 year)</span>
             </label>
           </div>
         </div>
