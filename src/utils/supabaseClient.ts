@@ -1,0 +1,421 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export type Profile = {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+  interests: string[];
+  country: string | null;
+  city: string | null;
+  follower_count?: number;
+  following_count?: number;
+  is_following?: boolean;
+};
+
+export type UserRelationship = {
+  follower_id: string;
+  following_id: string;
+  status: 'pending' | 'accepted' | 'blocked';
+  created_at: string;
+  profiles?: Profile;
+};
+
+export type Category = {
+  id: string;
+  name: string;
+  slug: string;
+  parent_id: string | null;
+  description: string | null;
+  icon: string | null;
+  created_at: string;
+};
+
+export type Community = {
+  id: string;
+  name: string;
+  description: string | null;
+  cover_image: string | null;
+  created_at: string;
+  created_by: string | null;
+  country: string | null;
+  city: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  members_count?: number;
+  events?: Array<Event>;
+  categories?: Category[];
+};
+
+export type Thread = {
+  id: string;
+  community_id: string;
+  title: string;
+  content: string;
+  created_at: string;
+  created_by: string | null;
+  is_pinned: boolean;
+  profiles?: {
+    username: string;
+    avatar_url: string | null;
+  };
+  likes_count?: number;
+  user_has_liked?: boolean;
+};
+
+export type ThreadReply = {
+  id: string;
+  thread_id: string;
+  content: string;
+  created_at: string;
+  created_by: string | null;
+  profiles?: {
+    username: string;
+    avatar_url: string | null;
+  };
+  likes_count?: number;
+  user_has_liked?: boolean;
+};
+
+export type Event = {
+  id: string;
+  community_id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  start_time: string;
+  end_time: string | null;
+  created_at: string;
+  created_by: string | null;
+  type: 'online' | 'offline' | 'hybrid';
+  meeting_link: string | null;
+  max_attendees: number | null;
+  calendar_link: string | null;
+  is_private: boolean;
+};
+
+export type EventAttendee = {
+  event_id: string;
+  profile_id: string;
+  status: 'pending' | 'confirmed' | 'declined' | 'waitlist';
+  created_at: string;
+};
+
+export type CommunityMember = {
+  community_id: string;
+  profile_id: string;
+  role: string;
+  joined_at: string;
+  status: 'pending' | 'approved' | 'rejected' | 'banned';
+  is_admin: boolean;
+  profiles: {
+    username: string;
+    avatar_url: string | null;
+  };
+};
+
+export type Message = {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  is_read: boolean;
+  profiles?: {
+    username: string;
+    avatar_url: string | null;
+  };
+};
+
+export type Conversation = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  participants: {
+    profile_id: string;
+    profiles: {
+      username: string;
+      avatar_url: string | null;
+    };
+  }[];
+  last_message?: {
+    content: string;
+    created_at: string;
+  };
+};
+
+export const followUser = async (followingId: string) => {
+  const { data, error } = await supabase
+    .from('user_relationships')
+    .insert({
+      follower_id: supabase.auth.getUser().then(({ data }) => data.user?.id),
+      following_id: followingId,
+      status: 'accepted' // Auto-accept for now, can be changed to 'pending' for approval flow
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const unfollowUser = async (followingId: string) => {
+  const { error } = await supabase
+    .from('user_relationships')
+    .delete()
+    .match({
+      follower_id: supabase.auth.getUser().then(({ data }) => data.user?.id),
+      following_id: followingId
+    });
+
+  if (error) throw error;
+};
+
+export const getFollowers = async (userId: string): Promise<UserRelationship[]> => {
+  const { data, error } = await supabase
+    .from('user_relationships')
+    .select(`
+      *,
+      profiles:follower_id (
+        username,
+        avatar_url
+      )
+    `)
+    .eq('following_id', userId)
+    .eq('status', 'accepted');
+
+  if (error) throw error;
+  return data || [];
+};
+
+export const getFollowing = async (userId: string): Promise<UserRelationship[]> => {
+  const { data, error } = await supabase
+    .from('user_relationships')
+    .select(`
+      *,
+      profiles:following_id (
+        username,
+        avatar_url
+      )
+    `)
+    .eq('follower_id', userId)
+    .eq('status', 'accepted');
+
+  if (error) throw error;
+  return data || [];
+};
+
+export const joinCommunity = async (communityId: string, profileId: string) => {
+  const { error } = await supabase
+    .from('community_members')
+    .insert({
+      community_id: communityId,
+      profile_id: profileId,
+      role: 'member',
+      status: 'approved'
+    });
+
+  if (error) throw error;
+};
+
+export const leaveCommunity = async (communityId: string, profileId: string) => {
+  const { error } = await supabase
+    .from('community_members')
+    .delete()
+    .eq('community_id', communityId)
+    .eq('profile_id', profileId);
+
+  if (error) throw error;
+};
+
+export const checkMembership = async (communityId: string, profileId: string) => {
+  const { data, error } = await supabase
+    .from('community_members')
+    .select()
+    .eq('community_id', communityId)
+    .eq('profile_id', profileId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+};
+
+export const getMembers = async (communityId: string): Promise<CommunityMember[]> => {
+  const { data, error } = await supabase
+    .from('community_members')
+    .select(`
+      community_id,
+      profile_id,
+      role,
+      joined_at,
+      status,
+      is_admin,
+      profiles (
+        username,
+        avatar_url
+      )
+    `)
+    .eq('community_id', communityId);
+
+  if (error) throw error;
+  return data || [];
+};
+
+export const updateMemberStatus = async (communityId: string, profileId: string, status: CommunityMember['status']) => {
+  const { error } = await supabase
+    .from('community_members')
+    .update({ status })
+    .eq('community_id', communityId)
+    .eq('profile_id', profileId);
+
+  if (error) throw error;
+};
+
+export const createEvent = async (eventData: Partial<Event>) => {
+  const { data, error } = await supabase
+    .from('events')
+    .insert(eventData)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const updateEventAttendance = async (
+  eventId: string,
+  status: EventAttendee['status']
+) => {
+  const { data: existingRSVP } = await supabase
+    .from('event_attendees')
+    .select()
+    .eq('event_id', eventId)
+    .eq('profile_id', supabase.auth.getUser())
+    .single();
+
+  if (existingRSVP) {
+    const { error } = await supabase
+      .from('event_attendees')
+      .update({ status })
+      .eq('event_id', eventId)
+      .eq('profile_id', supabase.auth.getUser());
+
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('event_attendees')
+      .insert({
+        event_id: eventId,
+        profile_id: supabase.auth.getUser(),
+        status
+      });
+
+    if (error) throw error;
+  }
+};
+
+export const cancelEventAttendance = async (eventId: string) => {
+  const { error } = await supabase
+    .from('event_attendees')
+    .delete()
+    .eq('event_id', eventId)
+    .eq('profile_id', supabase.auth.getUser());
+
+  if (error) throw error;
+};
+
+export const removeMember = async (communityId: string, profileId: string) => {
+  const { error } = await supabase
+    .from('community_members')
+    .delete()
+    .eq('community_id', communityId)
+    .eq('profile_id', profileId);
+
+  if (error) throw error;
+};
+
+export const toggleAdmin = async (communityId: string, profileId: string, makeAdmin: boolean) => {
+  const { error } = await supabase
+    .from('community_members')
+    .update({ is_admin: makeAdmin })
+    .eq('community_id', communityId)
+    .eq('profile_id', profileId);
+
+  if (error) throw error;
+};
+
+export const createReply = async (threadId: string, content: string): Promise<ThreadReply> => {
+  const { data, error } = await supabase
+    .from('thread_replies')
+    .insert({
+      thread_id: threadId,
+      content: content.trim(),
+    })
+    .select(`
+      *,
+      profiles:created_by (
+        username,
+        avatar_url
+      )
+    `)
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+export const toggleThreadLike = async (threadId: string): Promise<boolean> => {
+  const { data: existingLike } = await supabase
+    .from('thread_likes')
+    .select()
+    .eq('thread_id', threadId)
+    .maybeSingle();
+
+  if (existingLike) {
+    const { error } = await supabase
+      .from('thread_likes')
+      .delete()
+      .eq('thread_id', threadId);
+
+    if (error) throw error;
+    return false;
+  } else {
+    const { error } = await supabase
+      .from('thread_likes')
+      .insert({ thread_id: threadId });
+
+    if (error) throw error;
+    return true;
+  }
+};
+
+export const toggleReplyLike = async (replyId: string): Promise<boolean> => {
+  const { data: existingLike } = await supabase
+    .from('thread_reply_likes')
+    .select()
+    .eq('reply_id', replyId)
+    .maybeSingle();
+
+  if (existingLike) {
+    const { error } = await supabase
+      .from('thread_reply_likes')
+      .delete()
+      .eq('reply_id', replyId);
+
+    if (error) throw error;
+    return false;
+  } else {
+    const { error } = await supabase
+      .from('thread_reply_likes')
+      .insert({ reply_id: replyId });
+
+    if (error) throw error;
+    return true;
+  }
+};
