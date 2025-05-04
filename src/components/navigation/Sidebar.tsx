@@ -215,7 +215,10 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
         </div>
 
         {profile && (
-          <div className="absolute bottom-20 left-5 right-5 glass-panel p-4 flex items-center gap-3">
+          <Link
+            to={`/profile/${profile.username}`}
+            className="absolute bottom-20 left-5 right-5 glass-panel p-4 flex items-center gap-3 hover:border-accent-1 transition-all cursor-pointer"
+          >
             <img
               src={profile.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${profile.username}`}
               alt={profile.username}
@@ -225,7 +228,7 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
               <div className="font-bold">{profile.username}</div>
               <div className="text-sm text-text-secondary">Member</div>
             </div>
-          </div>
+          </Link>
         )}
       </div>
       

@@ -1,0 +1,10 @@
+-- Add new columns to profiles table
+ALTER TABLE profiles
+ADD COLUMN IF NOT EXISTS full_name TEXT,
+ADD COLUMN IF NOT EXISTS bio TEXT,
+ADD COLUMN IF NOT EXISTS location TEXT,
+ADD COLUMN IF NOT EXISTS website TEXT,
+ADD COLUMN IF NOT EXISTS social_links JSONB DEFAULT '{}'::jsonb,
+ADD COLUMN IF NOT EXISTS interests TEXT[],
+ADD COLUMN IF NOT EXISTS occupation TEXT,
+ADD COLUMN IF NOT EXISTS banner_image TEXT; 

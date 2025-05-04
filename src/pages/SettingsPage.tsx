@@ -4,12 +4,27 @@ import { motion } from 'framer-motion';
 import { User, Mail, Bell, Shield, Trash2 } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import type { Profile } from '../utils/supabaseClient';
+
+interface SocialLinks {
+  twitter?: string;
+  linkedin?: string;
+  github?: string;
+}
 
 const SettingsPage: React.FC = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState(profile?.username || '');
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
+  const [fullName, setFullName] = useState(profile?.full_name || '');
+  const [bio, setBio] = useState(profile?.bio || '');
+  const [location, setLocation] = useState(profile?.location || '');
+  const [website, setWebsite] = useState(profile?.website || '');
+  const [occupation, setOccupation] = useState(profile?.occupation || '');
+  const [bannerUrl, setBannerUrl] = useState(profile?.banner_image || '');
+  const [interests, setInterests] = useState<string[]>(profile?.interests || []);
+  const [socialLinks, setSocialLinks] = useState<SocialLinks>(profile?.social_links || {});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'security' | 'danger'>('profile');
 
@@ -60,6 +75,14 @@ const SettingsPage: React.FC = () => {
         .update({
           username,
           avatar_url: avatarUrl,
+          full_name: fullName,
+          bio,
+          location,
+          website,
+          occupation,
+          banner_image: bannerUrl,
+          interests,
+          social_links: socialLinks,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
@@ -151,12 +174,12 @@ const SettingsPage: React.FC = () => {
                 <h2 className="text-xl font-heading mb-6">Profile Settings</h2>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="flex items-center gap-6 mb-8">
-                    <img
-                      src={avatarUrl || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${username}`}
-                      alt="Avatar"
-                      className="w-24 h-24 rounded-full border-4 border-accent-1"
-                    />
-                    <div>
+                    <div className="relative">
+                      <img
+                        src={avatarUrl || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${username}`}
+                        alt="Avatar"
+                        className="w-24 h-24 rounded-full border-4 border-accent-1"
+                      />
                       <input
                         type="file"
                         id="avatar"
@@ -166,25 +189,148 @@ const SettingsPage: React.FC = () => {
                       />
                       <label
                         htmlFor="avatar"
-                        className="btn-secondary cursor-pointer"
+                        className="absolute bottom-0 right-0 btn-secondary rounded-full p-2 cursor-pointer"
                       >
-                        Change Avatar
+                        <User size={16} />
                       </label>
                     </div>
                   </div>
 
-                  <div>
-                    <label htmlFor="username" className="block text-sm font-bold mb-2">
-                      Username
-                    </label>
-                    <input
-                      type="text"
-                      id="username"
-                      className="input-neon w-full"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      required
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label htmlFor="username" className="block text-sm font-bold mb-2">
+                        Username
+                      </label>
+                      <input
+                        type="text"
+                        id="username"
+                        className="input-neon w-full"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="fullName" className="block text-sm font-bold mb-2">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        id="fullName"
+                        className="input-neon w-full"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="Your real name (optional)"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label htmlFor="bio" className="block text-sm font-bold mb-2">
+                        Bio
+                      </label>
+                      <textarea
+                        id="bio"
+                        className="input-neon w-full h-24 resize-none"
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        placeholder="Tell us about yourself..."
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="location" className="block text-sm font-bold mb-2">
+                        Location
+                      </label>
+                      <input
+                        type="text"
+                        id="location"
+                        className="input-neon w-full"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        placeholder="City, Country"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="occupation" className="block text-sm font-bold mb-2">
+                        Occupation
+                      </label>
+                      <input
+                        type="text"
+                        id="occupation"
+                        className="input-neon w-full"
+                        value={occupation}
+                        onChange={(e) => setOccupation(e.target.value)}
+                        placeholder="What do you do?"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="website" className="block text-sm font-bold mb-2">
+                        Website
+                      </label>
+                      <input
+                        type="url"
+                        id="website"
+                        className="input-neon w-full"
+                        value={website}
+                        onChange={(e) => setWebsite(e.target.value)}
+                        placeholder="https://your-website.com"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="interests" className="block text-sm font-bold mb-2">
+                        Interests
+                      </label>
+                      <input
+                        type="text"
+                        id="interests"
+                        className="input-neon w-full"
+                        value={interests.join(', ')}
+                        onChange={(e) => setInterests(e.target.value.split(',').map(i => i.trim()))}
+                        placeholder="coding, gaming, music"
+                      />
+                      <p className="text-sm text-text-secondary mt-1">
+                        Separate interests with commas
+                      </p>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-bold mb-2">
+                        Social Links
+                      </label>
+                      <div className="space-y-3">
+                        <div>
+                          <input
+                            type="url"
+                            className="input-neon w-full"
+                            value={socialLinks.twitter || ''}
+                            onChange={(e) => setSocialLinks({ ...socialLinks, twitter: e.target.value })}
+                            placeholder="Twitter URL"
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="url"
+                            className="input-neon w-full"
+                            value={socialLinks.linkedin || ''}
+                            onChange={(e) => setSocialLinks({ ...socialLinks, linkedin: e.target.value })}
+                            placeholder="LinkedIn URL"
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="url"
+                            className="input-neon w-full"
+                            value={socialLinks.github || ''}
+                            onChange={(e) => setSocialLinks({ ...socialLinks, github: e.target.value })}
+                            placeholder="GitHub URL"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div>

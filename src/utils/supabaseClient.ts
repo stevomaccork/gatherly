@@ -9,9 +9,20 @@ export type Profile = {
   id: string;
   username: string;
   avatar_url: string | null;
+  full_name: string | null;
+  bio: string | null;
+  location: string | null;
+  website: string | null;
+  occupation: string | null;
+  banner_image: string | null;
+  interests: string[];
+  social_links: {
+    twitter?: string;
+    linkedin?: string;
+    github?: string;
+  } | null;
   created_at: string;
   updated_at: string;
-  interests: string[];
   country: string | null;
   city: string | null;
   follower_count?: number;

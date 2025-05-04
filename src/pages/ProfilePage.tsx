@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, MessageSquare, Calendar, Settings, Edit } from 'lucide-react';
+import { Users, MessageSquare, Calendar, Settings, Edit, MapPin, Globe, Twitter, Linkedin, Github } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import type { Profile } from '../utils/supabaseClient';
 
 const ProfilePage: React.FC = () => {
   const { username } = useParams<{ username: string }>();
   const { user } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [communities, setCommunities] = useState<any[]>([]);
   const [threads, setThreads] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
@@ -108,6 +109,12 @@ const ProfilePage: React.FC = () => {
       exit={{ opacity: 0 }}
     >
       <div className="glass-panel p-8 mb-8">
+        {profile.banner_image && (
+          <div 
+            className="h-48 -mt-8 -mx-8 mb-8 bg-cover bg-center"
+            style={{ backgroundImage: `url(${profile.banner_image})` }}
+          />
+        )}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-6">
             <img
@@ -117,8 +124,26 @@ const ProfilePage: React.FC = () => {
             />
             <div>
               <h1 className="text-3xl font-heading">{profile.username}</h1>
-              <div className="text-text-secondary">
-                Member since {new Date(profile.created_at).toLocaleDateString()}
+              {profile.full_name && (
+                <div className="text-lg text-accent-2">{profile.full_name}</div>
+              )}
+              <div className="text-text-secondary flex items-center gap-4 mt-2">
+                <span>Member since {new Date(profile.created_at).toLocaleDateString()}</span>
+                {profile.location && (
+                  <>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <MapPin size={14} />
+                      {profile.location}
+                    </span>
+                  </>
+                )}
+                {profile.occupation && (
+                  <>
+                    <span>•</span>
+                    <span>{profile.occupation}</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -130,6 +155,25 @@ const ProfilePage: React.FC = () => {
             </Link>
           )}
         </div>
+
+        {profile.bio && (
+          <div className="mb-6 text-lg">
+            {profile.bio}
+          </div>
+        )}
+
+        {profile.interests && profile.interests.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {profile.interests.map((interest: string, index: number) => (
+              <span
+                key={index}
+                className="px-3 py-1 bg-surface-blur rounded-full text-sm text-text-secondary"
+              >
+                {interest}
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="flex gap-6 text-text-secondary">
           <div className="flex items-center gap-2">
@@ -145,6 +189,57 @@ const ProfilePage: React.FC = () => {
             <span>{events.length} Events</span>
           </div>
         </div>
+
+        {(profile.website || Object.keys(profile.social_links || {}).length > 0) && (
+          <div className="border-t border-surface-blur mt-6 pt-6">
+            <div className="flex flex-wrap gap-4">
+              {profile.website && (
+                <a
+                  href={profile.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-text-secondary hover:text-accent-1"
+                >
+                  <Globe size={16} />
+                  <span>Website</span>
+                </a>
+              )}
+              {profile.social_links?.twitter && (
+                <a
+                  href={profile.social_links.twitter}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-text-secondary hover:text-accent-1"
+                >
+                  <Twitter size={16} />
+                  <span>Twitter</span>
+                </a>
+              )}
+              {profile.social_links?.linkedin && (
+                <a
+                  href={profile.social_links.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-text-secondary hover:text-accent-1"
+                >
+                  <Linkedin size={16} />
+                  <span>LinkedIn</span>
+                </a>
+              )}
+              {profile.social_links?.github && (
+                <a
+                  href={profile.social_links.github}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-text-secondary hover:text-accent-1"
+                >
+                  <Github size={16} />
+                  <span>GitHub</span>
+                </a>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mb-8 flex border-b border-surface-blur">
