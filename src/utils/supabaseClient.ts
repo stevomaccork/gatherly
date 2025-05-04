@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables');
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export type Profile = {
@@ -62,6 +66,13 @@ export type Community = {
   members_count?: number;
   events?: Array<Event>;
   categories?: Category[];
+  social_links?: {
+    instagram?: string;
+    twitter?: string;
+    discord?: string;
+    facebook?: string;
+  } | null;
+  community_members?: Array<{ count: number }>;
 };
 
 export type Thread = {
@@ -118,18 +129,21 @@ export type EventAttendee = {
   created_at: string;
 };
 
-export type CommunityMember = {
+// First, let's define our base types clearly
+interface ProfileData {
+  username: string;
+  avatar_url: string | null;
+}
+
+export interface CommunityMember {
   community_id: string;
   profile_id: string;
   role: string;
   joined_at: string;
   status: 'pending' | 'approved' | 'rejected' | 'banned';
   is_admin: boolean;
-  profiles: {
-    username: string;
-    avatar_url: string | null;
-  };
-};
+  profiles: ProfileData;
+}
 
 export type Message = {
   id: string;
@@ -257,7 +271,21 @@ export const checkMembership = async (communityId: string, profileId: string) =>
   return data;
 };
 
+// Now let's modify the getMembers function to use type assertions
 export const getMembers = async (communityId: string): Promise<CommunityMember[]> => {
+  type DbResponse = {
+    community_id: string;
+    profile_id: string;
+    role: string;
+    joined_at: string;
+    status: 'pending' | 'approved' | 'rejected' | 'banned';
+    is_admin: boolean;
+    profiles: {
+      username: string;
+      avatar_url: string | null;
+    };
+  };
+
   const { data, error } = await supabase
     .from('community_members')
     .select(`
@@ -272,7 +300,8 @@ export const getMembers = async (communityId: string): Promise<CommunityMember[]
         avatar_url
       )
     `)
-    .eq('community_id', communityId);
+    .eq('community_id', communityId)
+    .returns<DbResponse[]>();
 
   if (error) throw error;
   return data || [];

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Shield, Ban, UserPlus, UserMinus } from 'lucide-react';
+import { Users, Shield, Ban, UserPlus, UserMinus, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase, getMembers, updateMemberStatus, toggleAdmin, removeMember } from '../../utils/supabaseClient';
 import type { CommunityMember } from '../../utils/supabaseClient';
+import CommunitySettings from './CommunitySettings';
 
 interface AdminPanelProps {
   communityId: string;
@@ -10,7 +11,7 @@ interface AdminPanelProps {
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ communityId }) => {
   const [members, setMembers] = useState<any[]>([]);
-  const [selectedTab, setSelectedTab] = useState<'pending' | 'approved' | 'banned'>('pending');
+  const [selectedTab, setSelectedTab] = useState<'pending' | 'approved' | 'banned' | 'settings'>('pending');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -96,10 +97,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ communityId }) => {
           <Ban size={16} />
           <span>Banned</span>
         </button>
+
+        <button
+          className={`flex items-center gap-2 px-4 py-2 rounded-full ${
+            selectedTab === 'settings' ? 'bg-accent-1 text-primary' : 'bg-surface-blur text-text-secondary'
+          }`}
+          onClick={() => setSelectedTab('settings')}
+        >
+          <Settings size={16} />
+          <span>Settings</span>
+        </button>
       </div>
 
-      {loading ? (
+      {loading && selectedTab !== 'settings' ? (
         <div className="text-center py-8 text-text-secondary">Loading...</div>
+      ) : selectedTab === 'settings' ? (
+        <CommunitySettings communityId={communityId} />
       ) : (
         <div className="space-y-4">
           {filteredMembers.map((member) => (

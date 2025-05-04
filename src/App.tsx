@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 
@@ -31,26 +30,30 @@ function App() {
     <Router>
       <ErrorBoundary>
         <UIProvider>
-          <AuthProvider>
-            <AnimatePresence mode="wait">
-              <Routes>
-                <Route path="/auth" element={<AuthPage />} />
-                <Route path="/" element={<MainLayout />}>
-                  <Route index element={<DiscoverPage />} />
-                  <Route path="community/create" element={<CreateCommunityPage />} />
-                  <Route path="community/:id" element={<CommunityPage />} />
-                  <Route path="thread/:id" element={<ThreadPage />} />
-                  <Route path="event/:id" element={<EventPage />} />
-                  <Route path="events" element={<EventsPage />} />
-                  <Route path="dashboard" element={<DashboardPage />} />
-                  <Route path="profile/:username" element={<ProfilePage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="messages" element={<MessagesPage />} />
-                  <Route path="*" element={<NotFoundPage />} />
-                </Route>
-              </Routes>
-            </AnimatePresence>
-          </AuthProvider>
+          <ErrorBoundary>
+            <AuthProvider>
+              <ErrorBoundary>
+                <AnimatePresence mode="wait">
+                  <Routes>
+                    <Route path="/auth" element={<AuthPage />} />
+                    <Route path="/" element={<MainLayout />}>
+                      <Route index element={<DiscoverPage />} />
+                      <Route path="community/create" element={<CreateCommunityPage />} />
+                      <Route path="community/:id" element={<CommunityPage />} />
+                      <Route path="thread/:id" element={<ThreadPage />} />
+                      <Route path="event/:id" element={<EventPage />} />
+                      <Route path="events" element={<EventsPage />} />
+                      <Route path="dashboard" element={<DashboardPage />} />
+                      <Route path="profile/:username" element={<ProfilePage />} />
+                      <Route path="settings" element={<SettingsPage />} />
+                      <Route path="messages" element={<MessagesPage />} />
+                      <Route path="*" element={<NotFoundPage />} />
+                    </Route>
+                  </Routes>
+                </AnimatePresence>
+              </ErrorBoundary>
+            </AuthProvider>
+          </ErrorBoundary>
         </UIProvider>
       </ErrorBoundary>
     </Router>

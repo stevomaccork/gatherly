@@ -3,7 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Users, MessageSquare, Calendar, ChevronLeft, Bell, Video, Globe, 
-  Facebook, Twitter, Instagram, Youtube, Link as LinkIcon, MessageCircle
+  Facebook, Twitter, Instagram, Youtube, Link as LinkIcon, MessageCircle,
+  Discord
 } from 'lucide-react';
 import { supabase, joinCommunity, leaveCommunity, checkMembership } from '../utils/supabaseClient';
 import type { Community, Thread, Event } from '../utils/supabaseClient';
@@ -22,6 +23,7 @@ interface SocialLinks {
   instagram?: string;
   youtube?: string;
   website?: string;
+  discord?: string;
 }
 
 // Update Community type to include social links
@@ -276,6 +278,59 @@ const CommunityPage: React.FC = () => {
     </Link>
   );
 
+  const renderSocialLinks = () => {
+    if (!community?.social_links) return null;
+
+    return (
+      <div className="flex gap-4 items-center mt-4">
+        {community.social_links.instagram && (
+          <a
+            href={community.social_links.instagram}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-text-primary hover:text-accent-1 transition-colors"
+            title="Instagram"
+          >
+            <Instagram size={24} />
+          </a>
+        )}
+        {community.social_links.twitter && (
+          <a
+            href={community.social_links.twitter}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-text-primary hover:text-accent-1 transition-colors"
+            title="Twitter"
+          >
+            <Twitter size={24} />
+          </a>
+        )}
+        {community.social_links.discord && (
+          <a
+            href={community.social_links.discord}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-text-primary hover:text-accent-1 transition-colors"
+            title="Discord"
+          >
+            <Discord size={24} />
+          </a>
+        )}
+        {community.social_links.facebook && (
+          <a
+            href={community.social_links.facebook}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-text-primary hover:text-accent-1 transition-colors"
+            title="Facebook"
+          >
+            <Facebook size={24} />
+          </a>
+        )}
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -316,60 +371,7 @@ const CommunityPage: React.FC = () => {
             <div>
               <h1 className="font-heading text-3xl sm:text-4xl text-white mb-2">{community.name}</h1>
               <div className="flex items-center gap-4">
-                {community.social_links && (
-                  <div className="flex items-center gap-2">
-                    {community.social_links.facebook && (
-                      <a 
-                        href={community.social_links.facebook}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-text-secondary hover:text-accent-1"
-                      >
-                        <Facebook size={18} />
-                      </a>
-                    )}
-                    {community.social_links.twitter && (
-                      <a 
-                        href={community.social_links.twitter}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-text-secondary hover:text-accent-1"
-                      >
-                        <Twitter size={18} />
-                      </a>
-                    )}
-                    {community.social_links.instagram && (
-                      <a 
-                        href={community.social_links.instagram}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-text-secondary hover:text-accent-1"
-                      >
-                        <Instagram size={18} />
-                      </a>
-                    )}
-                    {community.social_links.youtube && (
-                      <a 
-                        href={community.social_links.youtube}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-text-secondary hover:text-accent-1"
-                      >
-                        <Youtube size={18} />
-                      </a>
-                    )}
-                    {community.social_links.website && (
-                      <a 
-                        href={community.social_links.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-text-secondary hover:text-accent-1"
-                      >
-                        <LinkIcon size={18} />
-                      </a>
-                    )}
-                  </div>
-                )}
+                {renderSocialLinks()}
                 <div className="flex items-center text-text-secondary">
                   <Users size={16} className="mr-1" />
                   <span>{members.length} members</span>
