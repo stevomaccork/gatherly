@@ -37,6 +37,7 @@ const App: React.FC = () => {
                   <Route path="/auth" element={<AuthPage />} />
                   <Route path="/" element={<MainLayout />}>
                     <Route index element={<DiscoverPage />} />
+                    <Route path="communities" element={<DiscoverPage />} />
                     <Route path="community/create" element={<CreateCommunityPage />} />
                     <Route path="community/:id" element={<CommunityPage />} />
                     <Route path="thread/:id" element={<ThreadPage />} />

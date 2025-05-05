@@ -63,11 +63,11 @@ body {
   }
 
   .nav-item {
-    @apply flex items-center gap-3 px-3 md:px-4 py-2 md:py-3 rounded-xl transition-all duration-200 text-text-secondary hover:text-accent-1 hover:bg-surface-blur;
+    @apply flex items-center gap-3 px-3 md:px-4 py-2 md:py-3 rounded-xl transition-all duration-200 hover:bg-white/70;
   }
 
   .nav-item.active {
-    @apply text-accent-1 bg-surface-blur shadow-[0_0_10px_rgba(0,229,255,0.2)];
+    @apply text-accent-1 bg-white shadow-md border border-accent-1/20;
   }
 
   .search-bar {

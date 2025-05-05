@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Users, MessageSquare, Calendar, ChevronLeft, Bell, Video, Globe, 
-  Facebook, Twitter, Instagram, Youtube, Link as LinkIcon, MessageCircle,
-  Discord
+  Users, MessageSquare, ChevronLeft, Bell, Video, Globe, 
+  Facebook, Twitter, Instagram, MessageCircle
 } from 'lucide-react';
 import { supabase, joinCommunity, leaveCommunity, checkMembership } from '../utils/supabaseClient';
-import type { Community, Thread, Event } from '../utils/supabaseClient';
+import type { Community, Thread as BaseThread, Event as BaseEvent } from '../utils/supabaseClient';
 import AdminPanel from '../components/community/AdminPanel';
 import ThreadForm from '../components/thread/ThreadForm';
 import EventForm from '../components/event/EventForm';
@@ -29,6 +28,17 @@ interface SocialLinks {
 // Update Community type to include social links
 interface ExtendedCommunity extends Community {
   social_links?: SocialLinks;
+}
+
+// Extended Thread type with count properties from Supabase queries
+interface Thread extends BaseThread {
+  thread_replies_count?: number;
+  thread_likes_count?: number;
+}
+
+// Extended Event type with count properties from Supabase queries
+interface Event extends BaseEvent {
+  event_attendees_count?: number;
 }
 
 const CommunityPage: React.FC = () => {
@@ -271,13 +281,6 @@ const CommunityPage: React.FC = () => {
     }
   };
 
-  const renderAuthPrompt = (action: string) => (
-    <Link to="/auth" className="glass-panel p-6 text-center block hover:border-accent-1 transition-all">
-      <h3 className="text-xl font-bold mb-2">Sign in to {action}</h3>
-      <p className="text-text-secondary">Join the conversation and become part of the community</p>
-    </Link>
-  );
-
   const renderSocialLinks = () => {
     if (!community?.social_links) return null;
 
@@ -313,7 +316,7 @@ const CommunityPage: React.FC = () => {
             className="text-text-primary hover:text-accent-1 transition-colors"
             title="Discord"
           >
-            <Discord size={24} />
+            <MessageSquare size={24} />
           </a>
         )}
         {community.social_links.facebook && (
@@ -492,7 +495,7 @@ const CommunityPage: React.FC = () => {
                         <span>By {thread.profiles?.username}</span>
                         <div className="flex items-center">
                           <MessageSquare size={14} className="mr-1" />
-                          <span>{thread.thread_replies_count} replies · {new Date(thread.created_at).toLocaleDateString()}</span>
+                          <span>{(thread as any).thread_replies_count} replies · {new Date(thread.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>
                     </Link>
@@ -551,7 +554,7 @@ const CommunityPage: React.FC = () => {
                       <div className="flex items-center gap-4 text-accent-2">
                         <div className="flex items-center">
                           <MessageSquare size={16} className="mr-1" />
-                          <span>{thread.thread_replies_count} replies</span>
+                          <span>{(thread as any).thread_replies_count} replies</span>
                         </div>
                         <span>{new Date(thread.created_at).toLocaleDateString()}</span>
                       </div>
