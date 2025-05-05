@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../utils/supabaseClient';
-import type { User } from '@supabase/supabase-js';
+import type { User, Provider } from '@supabase/supabase-js';
 import type { Profile } from '../utils/supabaseClient';
 
 interface AuthContextType {
@@ -9,6 +9,7 @@ interface AuthContextType {
   profile: Profile | null;
   signUp: (email: string, password: string, username: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   loading: boolean;
   error: string | null;
@@ -81,9 +82,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
+      // If the profile doesn't exist yet (like after a Google sign in), create it
+      if (!data) {
+        await createProfileForUser(userId);
+        return;
+      }
+      
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
+    }
+  };
+
+  const createProfileForUser = async (userId: string) => {
+    try {
+      // Get user details from auth
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user) return;
+      
+      const user = userData.user;
+      
+      // Extract username from email or use a fallback
+      const email = user.email || '';
+      const username = email.split('@')[0] + Math.floor(Math.random() * 1000);
+      
+      // Create profile
+      const { error: profileError, data: newProfile } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          username,
+          email: user.email,
+          avatar_url: user.user_metadata.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${username}`,
+          full_name: user.user_metadata.full_name || null,
+        })
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        throw new Error('Failed to create user profile');
+      }
+      
+      setProfile(newProfile);
+    } catch (error) {
+      console.error('Error creating profile:', error);
     }
   };
 
@@ -116,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .insert({
             id: user.id,
             username,
+            email: user.email,
             avatar_url: `https://api.dicebear.com/7.x/pixel-art/svg?seed=${username}`,
           });
 
@@ -153,6 +197,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Get the return path from location state or default to '/'
       const from = (location.state as any)?.from || '/';
       navigate(from, { replace: true });
+    } catch (error: any) {
+      setError(error.message);
+      throw error;
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    try {
+      setError(null);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/auth/callback',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (error) throw error;
     } catch (error: any) {
       setError(error.message);
       throw error;
@@ -203,6 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     signUp,
     signIn,
+    signInWithGoogle,
     signOut,
     loading,
     error,

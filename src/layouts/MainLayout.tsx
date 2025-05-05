@@ -5,19 +5,13 @@ import { useUI } from '../contexts/UIContext';
 
 import Sidebar from '../components/navigation/Sidebar';
 import MobileNav from '../components/navigation/MobileNav';
-import NotificationPanel from '../components/notifications/NotificationPanel';
 
 const MainLayout: React.FC = () => {
   const { isMobile } = useUI();
-  const [showNotifications, setShowNotifications] = React.useState(false);
-
-  const toggleNotifications = () => {
-    setShowNotifications(!showNotifications);
-  };
 
   return (
     <div className="flex min-h-screen bg-white">
-      {!isMobile && <Sidebar toggleNotifications={toggleNotifications} />}
+      {!isMobile && <Sidebar />}
       
       <main className="flex-1 pb-20 md:pb-0 md:pl-[280px] relative">
         <motion.div
@@ -31,12 +25,7 @@ const MainLayout: React.FC = () => {
         </motion.div>
       </main>
       
-      {isMobile && <MobileNav toggleNotifications={toggleNotifications} />}
-      
-      <NotificationPanel 
-        isOpen={showNotifications} 
-        onClose={() => setShowNotifications(false)} 
-      />
+      {isMobile && <MobileNav />}
     </div>
   );
 };

@@ -12,6 +12,7 @@ import EventPage from './pages/EventPage';
 import EventsPage from './pages/EventsPage';
 import DashboardPage from './pages/DashboardPage';
 import AuthPage from './pages/AuthPage';
+import AuthCallback from './pages/AuthCallback';
 import CreateCommunityPage from './pages/CreateCommunityPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
@@ -35,6 +36,7 @@ const App: React.FC = () => {
               <AnimatePresence mode="wait">
                 <Routes>
                   <Route path="/auth" element={<AuthPage />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/" element={<MainLayout />}>
                     <Route index element={<DiscoverPage />} />
                     <Route path="communities" element={<DiscoverPage />} />
