@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Users, MessageSquare, ChevronLeft, Bell, Video, Globe, 
   Facebook, Twitter, Instagram, MessageCircle, MapPin, Tag,
-  Image as ImageIcon, X, ArrowLeft, ArrowRight, Share2
+  Image as ImageIcon, X, ArrowLeft, ArrowRight, Share2, Mail
 } from 'lucide-react';
 import { supabase, joinCommunity, leaveCommunity, checkMembership } from '../utils/supabaseClient';
 import type { Community, Thread as BaseThread, Event as BaseEvent } from '../utils/supabaseClient';
@@ -13,11 +13,6 @@ import ThreadForm from '../components/thread/ThreadForm';
 import EventForm from '../components/event/EventForm';
 import SocialShareBar from '../components/common/SocialShareBar';
 import { useAuth } from '../contexts/AuthContext';
-// Import Swiper React components and styles
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Pagination } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/pagination';
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -63,7 +58,6 @@ const CommunityPage: React.FC = () => {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [members, setMembers] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [messageContent, setMessageContent] = useState('');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
@@ -76,7 +70,7 @@ const CommunityPage: React.FC = () => {
   const [emailSubmissionSuccess, setEmailSubmissionSuccess] = useState(false);
   // Related communities state
   const [relatedCommunities, setRelatedCommunities] = useState<Community[]>([]);
-  const [isLoadingRelated, setIsLoadingRelated] = useState(false);
+  const [_error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -415,131 +409,10 @@ const CommunityPage: React.FC = () => {
     }
   };
 
-  const renderSocialLinks = () => {
-    if (!community?.social_links) return null;
-
-    return (
-      <div className="flex gap-4 items-center mt-4">
-        {community.social_links.instagram && (
-          <a
-            href={community.social_links.instagram}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-text-primary hover:text-accent-1 transition-colors"
-            title="Instagram"
-          >
-            <Instagram size={24} />
-          </a>
-        )}
-        {community.social_links.twitter && (
-          <a
-            href={community.social_links.twitter}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-text-primary hover:text-accent-1 transition-colors"
-            title="Twitter"
-          >
-            <Twitter size={24} />
-          </a>
-        )}
-        {community.social_links.discord && (
-          <a
-            href={community.social_links.discord}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-text-primary hover:text-accent-1 transition-colors"
-            title="Discord"
-          >
-            <MessageSquare size={24} />
-          </a>
-        )}
-        {community.social_links.facebook && (
-          <a
-            href={community.social_links.facebook}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-text-primary hover:text-accent-1 transition-colors"
-            title="Facebook"
-          >
-            <Facebook size={24} />
-          </a>
-        )}
-      </div>
-    );
-  };
-
-  // Simple custom lightbox component
-  const ImageLightbox = () => {
-    if (!isLightboxOpen || !community?.media) return null;
-    
-    const handleNext = () => {
-      setPhotoIndex((prevIndex) => 
-        prevIndex === community.media!.length - 1 ? 0 : prevIndex + 1
-      );
-    };
-    
-    const handlePrev = () => {
-      setPhotoIndex((prevIndex) => 
-        prevIndex === 0 ? community.media!.length - 1 : prevIndex - 1
-      );
-    };
-    
-    // Handle keyboard navigation
-    useEffect(() => {
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (!isLightboxOpen) return;
-        
-        if (e.key === 'ArrowRight') handleNext();
-        if (e.key === 'ArrowLeft') handlePrev();
-        if (e.key === 'Escape') setIsLightboxOpen(false);
-      };
-      
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isLightboxOpen]);
-    
-    return (
-      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <button 
-          className="absolute top-4 right-4 text-white hover:text-accent-1 transition-colors"
-          onClick={() => setIsLightboxOpen(false)}
-        >
-          <X size={24} />
-        </button>
-        
-        <button
-          className="absolute left-4 text-white hover:text-accent-1 transition-colors"
-          onClick={handlePrev}
-        >
-          <ArrowLeft size={32} />
-        </button>
-        
-        <div className="relative max-w-4xl max-h-[80vh]">
-          <img 
-            src={community.media[photoIndex]} 
-            alt={`${community.name} - Gallery Image ${photoIndex + 1}`}
-            className="max-w-full max-h-[80vh] object-contain"
-          />
-          <div className="absolute bottom-0 left-0 right-0 text-center text-white py-2 text-sm bg-black/40">
-            {photoIndex + 1} / {community.media.length}
-          </div>
-        </div>
-        
-        <button
-          className="absolute right-4 text-white hover:text-accent-1 transition-colors"
-          onClick={handleNext}
-        >
-          <ArrowRight size={32} />
-        </button>
-      </div>
-    );
-  };
-
-  // Fetch related communities based on shared topics and location
   const fetchRelatedCommunities = async () => {
     if (!community) return;
     
-    setIsLoadingRelated(true);
+    let loading = true;
     try {
       // Get category IDs from current community
       const categoryIds = community.community_categories?.map(c => c.categories.id) || [];
@@ -585,7 +458,7 @@ const CommunityPage: React.FC = () => {
     } catch (error) {
       console.error('Error fetching related communities:', error);
     } finally {
-      setIsLoadingRelated(false);
+      loading = false;
     }
   };
 
@@ -664,11 +537,75 @@ const CommunityPage: React.FC = () => {
       }
     } else {
       // Fallback for browsers that don't support the Web Share API
-      // Just open the modal with our existing SocialShareBar
-      document.querySelector('.glass-panel .social-share-bar')?.scrollIntoView({
-        behavior: 'smooth'
-      });
+      alert('Sharing is not supported in your browser.');
     }
+  };
+
+  // Simple custom lightbox component
+  const ImageLightbox = () => {
+    if (!isLightboxOpen || !community?.media) return null;
+    
+    const handleNext = () => {
+      setPhotoIndex((prevIndex) => 
+        prevIndex === community.media!.length - 1 ? 0 : prevIndex + 1
+      );
+    };
+    
+    const handlePrev = () => {
+      setPhotoIndex((prevIndex) => 
+        prevIndex === 0 ? community.media!.length - 1 : prevIndex - 1
+      );
+    };
+    
+    // Handle keyboard navigation
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (!isLightboxOpen) return;
+        
+        if (e.key === 'ArrowRight') handleNext();
+        if (e.key === 'ArrowLeft') handlePrev();
+        if (e.key === 'Escape') setIsLightboxOpen(false);
+      };
+      
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isLightboxOpen]);
+    
+    return (
+      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <button 
+          className="absolute top-4 right-4 text-white hover:text-accent-1 transition-colors"
+          onClick={() => setIsLightboxOpen(false)}
+        >
+          <X size={24} />
+        </button>
+        
+        <button
+          className="absolute left-4 text-white hover:text-accent-1 transition-colors"
+          onClick={handlePrev}
+        >
+          <ArrowLeft size={32} />
+        </button>
+        
+        <div className="relative max-w-4xl max-h-[80vh]">
+          <img 
+            src={community.media[photoIndex]} 
+            alt={`${community.name} - Gallery Image ${photoIndex + 1}`}
+            className="max-w-full max-h-[80vh] object-contain"
+          />
+          <div className="absolute bottom-0 left-0 right-0 text-center text-white py-2 text-sm bg-black/40">
+            {photoIndex + 1} / {community.media.length}
+          </div>
+        </div>
+        
+        <button
+          className="absolute right-4 text-white hover:text-accent-1 transition-colors"
+          onClick={handleNext}
+        >
+          <ArrowRight size={32} />
+        </button>
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -695,24 +632,28 @@ const CommunityPage: React.FC = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="relative" // Add relative positioning for floating button
+      className="relative mobile-optimized-container"
     >
       <Link to="/" className="flex items-center text-accent-1 hover:underline mb-4">
         <ChevronLeft size={16} />
         <span className="ml-1">Back to Discover</span>
       </Link>
       
+      {/* Hero Section - Mobile Optimized */}
       <div 
-        className="h-60 sm:h-80 w-full bg-cover bg-center rounded-3xl relative mb-6"
-        style={{ backgroundImage: `url(${community.cover_image})` }}
+        className="relative rounded-3xl mb-6 overflow-hidden"
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-primary/90 rounded-3xl"></div>
-        <div className="absolute bottom-0 left-0 right-0 p-6">
-          <div className="flex justify-between items-end">
+        <div 
+          className="h-40 sm:h-60 md:h-80 w-full bg-cover bg-center"
+          style={{ backgroundImage: `url(${community.cover_image})` }}
+        ></div>
+        
+        <div className="bg-primary p-4 md:absolute md:inset-0 md:bg-gradient-to-b md:from-transparent md:to-primary/90 md:p-6">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-end md:mt-auto">
             <div>
-              <h1 className="font-heading text-3xl sm:text-4xl text-white mb-2">{community.name}</h1>
+              <h1 className="font-heading text-2xl md:text-3xl lg:text-4xl text-white mb-2">{community.name}</h1>
               
-              {/* Tags container */}
+              {/* Tags container - Stack on mobile, wrap on desktop */}
               <div className="flex flex-wrap gap-2 mb-3">
                 {/* Location tag */}
                 {community.city && community.country && (
@@ -725,8 +666,8 @@ const CommunityPage: React.FC = () => {
                   </Link>
                 )}
                 
-                {/* Topic tags */}
-                {community.community_categories && community.community_categories.map(({ categories }) => (
+                {/* Topic tags - Show fewer on mobile */}
+                {community.community_categories && community.community_categories.slice(0, window.innerWidth < 768 ? 2 : community.community_categories.length).map(({ categories }, index) => (
                   <Link 
                     key={categories.id}
                     to={`/?category=${encodeURIComponent(categories.id)}`}
@@ -736,54 +677,62 @@ const CommunityPage: React.FC = () => {
                     {categories.name}
                   </Link>
                 ))}
+                
+                {/* Show more indicator if tags are hidden on mobile */}
+                {community.community_categories && window.innerWidth < 768 && community.community_categories.length > 2 && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-surface-blur/30 text-white text-sm">
+                    +{community.community_categories.length - 2} more
+                  </span>
+                )}
               </div>
               
-              <div className="flex items-center gap-4">
-                {renderSocialLinks()}
-                <div className="flex items-center text-text-secondary">
-                  <Users size={16} className="mr-1" />
-                  <span>{members.length} members</span>
-                </div>
+              <div className="flex items-center text-text-secondary mb-4 md:mb-0">
+                <Users size={16} className="mr-1" />
+                <span>{members.length} members</span>
               </div>
             </div>
-            <div className="flex gap-2">
+            
+            {/* Action Buttons - Stack on mobile, row on desktop */}
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               {user ? (
                 <>
                   <button 
-                    className={isMember ? "btn-secondary" : "btn-primary pulse-animation"}
+                    className={`${isMember ? "btn-secondary" : "btn-primary pulse-animation"} w-full sm:w-auto py-3`}
                     onClick={handleJoinCommunity}
                   >
                     {isMember ? 'Leave Community' : 'Join Community'}
                   </button>
                   {!isMember && (
-                    <>
+                    <div className="flex gap-2 w-full">
                       {community?.created_by && (
                         <button 
-                          className="btn-icon"
+                          className="btn-icon flex-1 sm:flex-none justify-center"
                           onClick={() => setShowMessageDialog(true)}
                         >
                           <MessageCircle size={18} />
+                          <span className="ml-2 sm:hidden">Message</span>
                         </button>
                       )}
                       <button 
-                        className="btn-secondary"
+                        className="btn-secondary flex-1 sm:flex-none justify-center"
                         onClick={() => setShowMailingListModal(true)}
                       >
-                        Join Mailing List
+                        <Mail size={18} className="sm:hidden" />
+                        <span className="ml-2 sm:ml-0">Join Mailing List</span>
                       </button>
-                    </>
+                    </div>
                   )}
-                  <button className="btn-icon">
+                  <button className="btn-icon hidden sm:flex">
                     <Bell size={18} />
                   </button>
                 </>
               ) : (
-                <div className="flex gap-2">
-                  <Link to="/auth" className="btn-primary">
+                <div className="flex flex-col sm:flex-row gap-2 w-full">
+                  <Link to="/auth" className="btn-primary py-3 text-center w-full sm:w-auto">
                     Sign in to Join
                   </Link>
                   <button 
-                    className="btn-secondary"
+                    className="btn-secondary py-3 w-full sm:w-auto"
                     onClick={() => setShowMailingListModal(true)}
                   >
                     Join Mailing List
@@ -795,8 +744,8 @@ const CommunityPage: React.FC = () => {
         </div>
       </div>
       
-      {/* Social Share Bar */}
-      <div className="glass-panel p-3 mb-6 flex justify-center sm:justify-start social-share-bar">
+      {/* Social Share Bar - Hidden on mobile, replaced by floating button */}
+      <div className="glass-panel p-3 mb-6 hidden sm:flex justify-center sm:justify-start social-share-bar">
         <SocialShareBar 
           url={window.location.href}
           title={`Join ${community.name} on Gatherly`}
@@ -856,91 +805,73 @@ const CommunityPage: React.FC = () => {
         </button>
       </div>
       
-      {/* Mobile Swipeable Tabs - Show only on mobile */}
-      <div className="md:hidden mb-8">
-        <Swiper
-          modules={[Pagination]}
-          spaceBetween={0}
-          slidesPerView={4}
-          pagination={{ clickable: true }}
-          onSlideChange={(swiper) => {
-            const tabs = ['overview', 'events', 'discussions', 'members'];
-            setActiveTab(tabs[swiper.activeIndex]);
-          }}
-          initialSlide={['overview', 'events', 'discussions', 'members'].indexOf(activeTab)}
-          className="community-tabs-swiper"
-        >
-          <SwiperSlide>
-            <button 
-              className={`w-full pb-3 px-4 text-sm font-bold relative ${activeTab === 'overview' ? 'text-accent-1' : 'text-text-secondary'}`}
-              onClick={() => setActiveTab('overview')}
-            >
-              Overview
-              {activeTab === 'overview' && (
-                <motion.div 
-                  layoutId="activeTabMobile"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
-                />
-              )}
-            </button>
-          </SwiperSlide>
-          <SwiperSlide>
-            <button 
-              className={`w-full pb-3 px-4 text-sm font-bold relative ${activeTab === 'events' ? 'text-accent-1' : 'text-text-secondary'}`}
-              onClick={() => setActiveTab('events')}
-            >
-              Events
-              {activeTab === 'events' && (
-                <motion.div 
-                  layoutId="activeTabMobile"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
-                />
-              )}
-            </button>
-          </SwiperSlide>
-          <SwiperSlide>
-            <button 
-              className={`w-full pb-3 px-4 text-sm font-bold relative ${activeTab === 'discussions' ? 'text-accent-1' : 'text-text-secondary'}`}
-              onClick={() => setActiveTab('discussions')}
-            >
-              Discussions
-              {activeTab === 'discussions' && (
-                <motion.div 
-                  layoutId="activeTabMobile"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
-                />
-              )}
-            </button>
-          </SwiperSlide>
-          <SwiperSlide>
-            <button 
-              className={`w-full pb-3 px-4 text-sm font-bold relative ${activeTab === 'members' ? 'text-accent-1' : 'text-text-secondary'}`}
-              onClick={() => setActiveTab('members')}
-            >
-              Members
-              {activeTab === 'members' && (
-                <motion.div 
-                  layoutId="activeTabMobile"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
-                />
-              )}
-            </button>
-          </SwiperSlide>
-        </Swiper>
+      {/* Mobile Tabs - Custom Implementation */}
+      <div className="md:hidden mb-8 border-b border-surface-blur">
+        <div className="flex overflow-x-auto scrollbar-hide">
+          <button 
+            className={`pb-3 px-4 text-sm font-bold relative flex-1 ${activeTab === 'overview' ? 'text-accent-1' : 'text-text-secondary'}`}
+            onClick={() => setActiveTab('overview')}
+          >
+            Overview
+            {activeTab === 'overview' && (
+              <motion.div 
+                layoutId="activeTabMobile"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
+              />
+            )}
+          </button>
+          <button 
+            className={`pb-3 px-4 text-sm font-bold relative flex-1 ${activeTab === 'events' ? 'text-accent-1' : 'text-text-secondary'}`}
+            onClick={() => setActiveTab('events')}
+          >
+            Events
+            {activeTab === 'events' && (
+              <motion.div 
+                layoutId="activeTabMobile"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
+              />
+            )}
+          </button>
+          <button 
+            className={`pb-3 px-4 text-sm font-bold relative flex-1 ${activeTab === 'discussions' ? 'text-accent-1' : 'text-text-secondary'}`}
+            onClick={() => setActiveTab('discussions')}
+          >
+            Discussions
+            {activeTab === 'discussions' && (
+              <motion.div 
+                layoutId="activeTabMobile"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
+              />
+            )}
+          </button>
+          <button 
+            className={`pb-3 px-4 text-sm font-bold relative flex-1 ${activeTab === 'members' ? 'text-accent-1' : 'text-text-secondary'}`}
+            onClick={() => setActiveTab('members')}
+          >
+            Members
+            {activeTab === 'members' && (
+              <motion.div 
+                layoutId="activeTabMobile"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
+              />
+            )}
+          </button>
+        </div>
       </div>
       
+      {/* Responsive Layout - Stack on mobile, grid on desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           {activeTab === 'overview' && (
             <>
-              <div className="glass-panel p-6 mb-6">
+              <div className="glass-panel p-4 md:p-6 mb-4 md:mb-6">
                 <h3 className="text-xl font-heading mb-4">About this community</h3>
                 <p className="text-text-secondary">{community.description}</p>
               </div>
               
-              {/* Image Gallery Card */}
+              {/* Image Gallery Card - Optimize for mobile */}
               {community.media && community.media.length > 0 && (
-                <div className="glass-panel p-6 mb-6">
+                <div className="glass-panel p-4 md:p-6 mb-4 md:mb-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-heading">
                       <ImageIcon size={20} className="inline mr-2" />
@@ -951,20 +882,21 @@ const CommunityPage: React.FC = () => {
                     </span>
                   </div>
                   
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {community.media.slice(0, 6).map((image, index) => (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-3">
+                    {community.media.slice(0, 6).map((image, i) => (
                       <div 
-                        key={index}
-                        className="aspect-square overflow-hidden rounded-lg cursor-pointer hover:opacity-90 transition-all"
+                        key={i}
+                        className="aspect-square overflow-hidden rounded-lg cursor-pointer hover:opacity-90 transition-all touch-card-image"
                         onClick={() => {
-                          setPhotoIndex(index);
+                          setPhotoIndex(i);
                           setIsLightboxOpen(true);
                         }}
                       >
                         <img 
                           src={image} 
-                          alt={`${community.name} gallery image ${index + 1}`}
+                          alt={`${community.name} gallery image ${i + 1}`}
                           className="w-full h-full object-cover"
+                          loading="lazy"
                         />
                       </div>
                     ))}
@@ -972,7 +904,7 @@ const CommunityPage: React.FC = () => {
                   
                   {community.media.length > 6 && (
                     <button 
-                      className="btn-secondary w-full mt-4"
+                      className="btn-secondary w-full mt-4 py-3"
                       onClick={() => {
                         setPhotoIndex(0);
                         setIsLightboxOpen(true);
@@ -984,7 +916,7 @@ const CommunityPage: React.FC = () => {
                 </div>
               )}
               
-              <div className="glass-panel p-6">
+              <div className="glass-panel p-4 md:p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-xl font-heading">Recent Discussions</h3>
                   <button 
@@ -995,17 +927,17 @@ const CommunityPage: React.FC = () => {
                   </button>
                 </div>
                 
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                   {threads.slice(0, 3).map(thread => (
                     <Link 
                       key={thread.id} 
                       to={`/thread/${thread.id}`}
-                      className="glass-panel p-4 block hover:border-accent-1 transition-all"
+                      className="glass-panel p-3 md:p-4 block hover:border-accent-1 transition-all touch-card"
                     >
                       <h4 className="font-bold mb-2">{thread.title}</h4>
-                      <div className="flex justify-between text-sm text-text-secondary">
+                      <div className="flex flex-col sm:flex-row sm:justify-between text-sm text-text-secondary">
                         <span>By {thread.profiles?.username}</span>
-                        <div className="flex items-center">
+                        <div className="flex items-center mt-1 sm:mt-0">
                           <MessageSquare size={14} className="mr-1" />
                           <span>{(thread as any).thread_replies_count} replies · {new Date(thread.created_at).toLocaleDateString()}</span>
                         </div>
@@ -1016,7 +948,7 @@ const CommunityPage: React.FC = () => {
                 
                 {user && isMember && (
                   <button 
-                    className="btn-secondary w-full mt-4"
+                    className="btn-secondary w-full mt-4 py-3"
                     onClick={() => setShowThreadForm(true)}
                   >
                     Start New Discussion
@@ -1024,7 +956,7 @@ const CommunityPage: React.FC = () => {
                 )}
 
                 {!user && (
-                  <Link to="/auth" className="btn-secondary w-full mt-4 text-center">
+                  <Link to="/auth" className="btn-secondary w-full mt-4 py-3 text-center">
                     Sign in to Start Discussion
                   </Link>
                 )}
@@ -1032,19 +964,20 @@ const CommunityPage: React.FC = () => {
             </>
           )}
 
+          {/* Mobile-optimized discussions tab */}
           {activeTab === 'discussions' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-heading">Community Discussions</h2>
+            <div className="space-y-3 md:space-y-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 md:mb-6">
+                <h2 className="text-2xl font-heading mb-3 sm:mb-0">Community Discussions</h2>
                 {user && isMember ? (
                   <button 
-                    className="btn-primary"
+                    className="btn-primary py-3 w-full sm:w-auto"
                     onClick={() => setShowThreadForm(true)}
                   >
                     Start New Discussion
                   </button>
                 ) : (
-                  <Link to="/auth" className="btn-primary">
+                  <Link to="/auth" className="btn-primary py-3 w-full sm:w-auto text-center">
                     Sign in to Start Discussion
                   </Link>
                 )}
@@ -1055,15 +988,15 @@ const CommunityPage: React.FC = () => {
                   key={thread.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="glass-panel p-6"
+                  className="glass-panel p-4 md:p-6"
                 >
-                  <Link to={`/thread/${thread.id}`} className="block">
+                  <Link to={`/thread/${thread.id}`} className="block touch-card">
                     <h3 className="text-xl font-bold hover:text-accent-1 transition-colors">
                       {thread.title}
                     </h3>
-                    <div className="flex justify-between mt-3">
+                    <div className="flex flex-col sm:flex-row sm:justify-between mt-3">
                       <span className="text-text-secondary">Started by {thread.profiles?.username}</span>
-                      <div className="flex items-center gap-4 text-accent-2">
+                      <div className="flex items-center gap-4 text-accent-2 mt-2 sm:mt-0">
                         <div className="flex items-center">
                           <MessageSquare size={16} className="mr-1" />
                           <span>{(thread as any).thread_replies_count} replies</span>
@@ -1083,38 +1016,39 @@ const CommunityPage: React.FC = () => {
             </div>
           )}
 
+          {/* Mobile-optimized events tab */}
           {activeTab === 'events' && (
             <div>
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-heading">Community Events</h2>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 md:mb-6">
+                <h2 className="text-2xl font-heading mb-3 sm:mb-0">Community Events</h2>
                 {user && isMember ? (
                   <button 
-                    className="btn-primary"
+                    className="btn-primary py-3 w-full sm:w-auto"
                     onClick={() => setShowEventForm(true)}
                   >
                     Create New Event
                   </button>
                 ) : user ? (
-                  <div className="text-text-secondary">
+                  <div className="text-text-secondary text-center sm:text-left">
                     Join community to create events
                   </div>
                 ) : (
-                  <Link to="/auth" className="btn-primary">
+                  <Link to="/auth" className="btn-primary py-3 w-full sm:w-auto text-center">
                     Sign in to Create Events
                   </Link>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {events.map(event => (
                   <motion.div
                     key={event.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="glass-panel overflow-hidden"
+                    className="glass-panel overflow-hidden touch-card"
                   >
                     <Link to={`/event/${event.id}`}>
-                      <div className="p-6">
+                      <div className="p-4 md:p-6">
                         <div className="flex items-center gap-2 text-accent-2 text-sm mb-2">
                           {event.type === 'online' && <Video size={16} />}
                           {event.type === 'hybrid' && <Globe size={16} />}
@@ -1129,8 +1063,8 @@ const CommunityPage: React.FC = () => {
                             {event.description}
                           </p>
                         )}
-                        <div className="flex justify-between items-center text-sm">
-                          <div className="text-text-secondary">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center text-sm">
+                          <div className="text-text-secondary mb-2 sm:mb-0">
                             {event.location || 'Online Event'}
                           </div>
                           <div className="flex items-center text-accent-1">
@@ -1155,24 +1089,26 @@ const CommunityPage: React.FC = () => {
             </div>
           )}
 
+          {/* Mobile-optimized members tab */}
           {activeTab === 'members' && (
             <div>
               {isAdmin ? (
                 <AdminPanel communityId={id!} />
               ) : (
-                <div className="glass-panel p-6">
-                  <h2 className="text-2xl font-heading mb-6">Community Members</h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="glass-panel p-4 md:p-6">
+                  <h2 className="text-2xl font-heading mb-4 md:mb-6">Community Members</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                     {members.map(member => (
                       <Link
                         key={member.profile_id}
                         to={`/profile/${member.profiles.username}`}
-                        className="glass-panel p-4 flex items-center gap-3 hover:border-accent-1 transition-all"
+                        className="glass-panel p-3 md:p-4 flex items-center gap-3 hover:border-accent-1 transition-all touch-card"
                       >
                         <img
                           src={member.profiles.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${member.profiles.username}`}
                           alt={member.profiles.username}
                           className="w-10 h-10 rounded-full"
+                          loading="lazy"
                         />
                         <div>
                           <div className="font-bold">{member.profiles.username}</div>
@@ -1195,8 +1131,9 @@ const CommunityPage: React.FC = () => {
           )}
         </div>
 
-        <div>
-          <div className="glass-panel p-6 mb-6">
+        {/* Sidebar - Hidden on mobile */}
+        <div className="hidden lg:block">
+          <div className="glass-panel p-4 md:p-6 mb-4 md:mb-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-heading">Upcoming Events</h3>
               <button 
@@ -1207,12 +1144,12 @@ const CommunityPage: React.FC = () => {
               </button>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3 md:space-y-4">
               {events.slice(0, 3).map(event => (
                 <Link 
                   key={event.id} 
                   to={`/event/${event.id}`}
-                  className="glass-panel p-4 block hover:border-accent-1 transition-all"
+                  className="glass-panel p-3 md:p-4 block hover:border-accent-1 transition-all"
                 >
                   <div className="flex items-center gap-2 text-accent-2 text-sm mb-1">
                     {event.type === 'online' && <Video size={14} />}
@@ -1242,7 +1179,7 @@ const CommunityPage: React.FC = () => {
             
             {user && isMember && (
               <button 
-                className="btn-secondary w-full mt-4"
+                className="btn-secondary w-full mt-4 py-3"
                 onClick={() => setShowEventForm(true)}
               >
                 Create New Event
@@ -1250,7 +1187,7 @@ const CommunityPage: React.FC = () => {
             )}
 
             {!user && (
-              <Link to="/auth" className="btn-secondary w-full mt-4 text-center">
+              <Link to="/auth" className="btn-secondary w-full mt-4 py-3 text-center">
                 Sign in to Create Event
               </Link>
             )}
@@ -1258,7 +1195,7 @@ const CommunityPage: React.FC = () => {
           
           {/* Related Communities Widget */}
           {relatedCommunities.length > 0 && (
-            <div className="glass-panel p-6 mb-6">
+            <div className="glass-panel p-4 md:p-6 mb-4 md:mb-6">
               <h3 className="text-xl font-heading mb-4">Related Communities</h3>
               <div className="space-y-3">
                 {relatedCommunities.map(relatedCommunity => renderRelatedCommunityCard(relatedCommunity))}
@@ -1266,7 +1203,7 @@ const CommunityPage: React.FC = () => {
             </div>
           )}
           
-          <div className="glass-panel p-6">
+          <div className="glass-panel p-4 md:p-6">
             <h3 className="text-xl font-heading mb-4">Community Rules</h3>
             <ol className="list-decimal list-inside text-text-secondary space-y-2 pl-2">
               <li>Be respectful to all members</li>
@@ -1278,26 +1215,38 @@ const CommunityPage: React.FC = () => {
           </div>
         </div>
       </div>
-
+      
+      {/* Thread Form Modal */}
       {showThreadForm && (
-        <ThreadForm
-          communityId={id!}
-          onThreadCreated={handleThreadCreated}
-          onClose={() => setShowThreadForm(false)}
-        />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="glass-panel p-4 md:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <ThreadForm
+              communityId={id!}
+              onThreadCreated={handleThreadCreated}
+              onClose={() => setShowThreadForm(false)}
+            />
+          </div>
+        </div>
       )}
 
+      {/* Event Form Modal */}
       {showEventForm && (
-        <EventForm
-          communityId={id!}
-          onEventCreated={handleEventCreated}
-          onClose={() => setShowEventForm(false)}
-        />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="glass-panel p-4 md:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <EventForm
+              communityId={id!}
+              onEventCreated={handleEventCreated}
+              onClose={() => setShowEventForm(false)}
+            />
+          </div>
+        </div>
       )}
 
+      {/* Message Dialog - Bottom Sheet on Mobile */}
       {showMessageDialog && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="glass-panel p-6 w-full max-w-md">
+          <div className="glass-panel p-4 md:p-6 w-full max-w-md bottom-sheet-modal">
+            <div className="bottom-sheet-handle md:hidden"></div>
             <h3 className="text-xl font-heading mb-4">Message Admin</h3>
             <textarea
               className="input-neon w-full min-h-[100px] mb-4"
@@ -1307,13 +1256,13 @@ const CommunityPage: React.FC = () => {
             />
             <div className="flex gap-4">
               <button
-                className="btn-secondary flex-1"
+                className="btn-secondary flex-1 py-3"
                 onClick={() => setShowMessageDialog(false)}
               >
                 Cancel
               </button>
               <button
-                className="btn-primary flex-1"
+                className="btn-primary flex-1 py-3"
                 onClick={handleSendMessage}
                 disabled={isSendingMessage || !messageContent.trim()}
               >
@@ -1323,11 +1272,12 @@ const CommunityPage: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Mailing List Modal */}
+      
+      {/* Mailing List Modal - Bottom Sheet on Mobile */}
       {showMailingListModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="glass-panel p-6 w-full max-w-md">
+          <div className="glass-panel p-4 md:p-6 w-full max-w-md bottom-sheet-modal">
+            <div className="bottom-sheet-handle md:hidden"></div>
             <h3 className="text-xl font-heading mb-2">Join {community.name} Mailing List</h3>
             <p className="text-text-secondary mb-4">
               Stay updated with the latest events, discussions, and announcements from this community.
@@ -1347,7 +1297,7 @@ const CommunityPage: React.FC = () => {
                   <input 
                     type="email"
                     id="email"
-                    className="input-neon w-full"
+                    className="input-neon w-full py-3"
                     placeholder="your@email.com"
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
@@ -1357,7 +1307,7 @@ const CommunityPage: React.FC = () => {
                 <div className="flex gap-4">
                   <button
                     type="button"
-                    className="btn-secondary flex-1"
+                    className="btn-secondary flex-1 py-3"
                     onClick={() => setShowMailingListModal(false)}
                     disabled={isSubmittingEmail}
                   >
@@ -1365,7 +1315,7 @@ const CommunityPage: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    className="btn-primary flex-1"
+                    className="btn-primary flex-1 py-3"
                     disabled={isSubmittingEmail || !emailInput.trim()}
                   >
                     {isSubmittingEmail ? 'Submitting...' : 'Subscribe'}
@@ -1377,12 +1327,12 @@ const CommunityPage: React.FC = () => {
         </div>
       )}
 
-      {/* Custom Image Lightbox */}
+      {/* Custom Image Lightbox - Fullscreen on Mobile */}
       <ImageLightbox />
-
-      {/* Mobile Floating Share Button - Show only on mobile */}
+      
+      {/* Mobile Floating Share Button */}
       <button
-        className="fixed right-4 bottom-16 z-40 btn-icon-floating md:hidden"
+        className="fixed right-4 bottom-20 z-40 btn-icon-floating md:hidden"
         onClick={handleShare}
         aria-label="Share this community"
       >
