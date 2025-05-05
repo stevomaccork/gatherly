@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Filter, Users, Calendar, MapPin, X, 
-  TrendingUp, Clock, Globe, Target, Zap, 
+  TrendingUp, Target, Zap, 
   Activity, UserCheck, MessageSquare, Award
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -49,7 +49,7 @@ type FilterValue = {
 type QuickFilterType = 'trending' | 'newToday' | 'nearMe' | 'mostActive' | 'openToAll' | 'withEvents' | 'activeDiscussions' | 'featured';
 
 const DiscoverPage: React.FC = () => {
-  const { user, profile } = useAuth();
+  const { profile } = useAuth();
   const [communities, setCommunities] = useState<Community[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -577,9 +577,15 @@ const DiscoverPage: React.FC = () => {
   return (
     <>
       <div className="mb-8">
-        <h1 className="text-3xl font-heading text-gradient-to-r from-accent-1 to-accent-2 mb-4">
-          Discover Communities
-        </h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-3xl font-heading text-gradient-to-r from-accent-1 to-accent-2">
+            Discover Communities
+          </h1>
+          <Link to="/events" className="text-accent-1 hover:underline flex items-center">
+            <Calendar size={16} className="mr-1" />
+            <span>View Events</span>
+          </Link>
+        </div>
         
         <div className="relative mb-6">
           <Search className="absolute left-4 top-3.5 text-text-secondary" size={20} />

@@ -1,22 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, Calendar, Video, Globe, Search, Filter, Clock } from 'lucide-react';
+import { Users, Calendar, Video, Globe, Search, Clock, MapPin } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../utils/supabaseClient';
-import type { Event } from '../utils/supabaseClient';
+import type { Event as BaseEvent } from '../utils/supabaseClient';
+
+// Extend the Event type to include the properties added by Supabase queries
+interface Event extends BaseEvent {
+  communities?: {
+    id: string;
+    name: string;
+  };
+  event_attendees?: Array<{
+    profile_id: string;
+    status: string;
+  }>;
+  profiles?: {
+    username: string;
+    avatar_url: string | null;
+  };
+}
 
 const EventsPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'attending' | 'hosting'>('all');
   const [eventType, setEventType] = useState<'all' | 'online' | 'offline' | 'hybrid'>('all');
+  const [showLocationFilter, setShowLocationFilter] = useState(false);
+  const [city, setCity] = useState(profile?.city || '');
+  const [country, setCountry] = useState(profile?.country || '');
+  const [radius, setRadius] = useState(20); // Default 20km radius
 
   useEffect(() => {
     fetchEvents();
-  }, [user, filter, eventType]);
+  }, [user, filter, eventType, city, country]);
+
+  useEffect(() => {
+    if (profile) {
+      setCity(profile.city || '');
+      setCountry(profile.country || '');
+    }
+  }, [profile]);
 
   const fetchEvents = async () => {
     try {
@@ -52,6 +79,12 @@ const EventsPage: React.FC = () => {
         query = query.eq('type', eventType);
       }
 
+      // Apply location filters if provided
+      if (city && country) {
+        query = query.ilike('city', `%${city}%`).ilike('country', `%${country}%`);
+        // In a real app, you would use geospatial queries for radius filtering
+      }
+
       const { data, error } = await query;
 
       if (error) throw error;
@@ -76,9 +109,15 @@ const EventsPage: React.FC = () => {
       exit={{ opacity: 0 }}
     >
       <div className="mb-8">
-        <h1 className="text-3xl font-heading text-gradient-to-r from-accent-1 to-accent-2 mb-4">
-          Upcoming Events
-        </h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-3xl font-heading text-gradient-to-r from-accent-1 to-accent-2">
+            Discover Events
+          </h1>
+          <Link to="/communities" className="text-accent-1 hover:underline flex items-center">
+            <Users size={16} className="mr-1" />
+            <span>View Communities</span>
+          </Link>
+        </div>
 
         <div className="relative mb-6">
           <Search className="absolute left-4 top-3.5 text-text-secondary" size={20} />
@@ -131,7 +170,71 @@ const EventsPage: React.FC = () => {
             <option value="offline">In-Person</option>
             <option value="hybrid">Hybrid</option>
           </select>
+
+          <button
+            className={`px-4 py-2 rounded-full text-sm flex items-center gap-2 ${
+              showLocationFilter ? 'bg-accent-1 text-primary' : 'bg-surface-blur text-text-secondary'
+            }`}
+            onClick={() => setShowLocationFilter(!showLocationFilter)}
+          >
+            <MapPin size={14} />
+            <span>Location</span>
+          </button>
         </div>
+
+        {showLocationFilter && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="glass-panel p-4 mb-6"
+          >
+            <h3 className="text-lg font-bold mb-4">Find events near you</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 text-text-secondary" size={18} />
+                <input
+                  type="text"
+                  placeholder="City"
+                  className="input-neon w-full pl-10"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                />
+              </div>
+              
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 text-text-secondary" size={18} />
+                <input
+                  type="text"
+                  placeholder="Country"
+                  className="input-neon w-full pl-10"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">Distance: {radius} km</label>
+                <input
+                  type="range"
+                  min="5"
+                  max="100"
+                  step="5"
+                  value={radius}
+                  onChange={(e) => setRadius(parseInt(e.target.value))}
+                  className="w-full accent-accent-1"
+                />
+                <div className="flex justify-between text-xs text-text-secondary mt-1">
+                  <span>5km</span>
+                  <span>25km</span>
+                  <span>50km</span>
+                  <span>100km</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {isLoading ? (

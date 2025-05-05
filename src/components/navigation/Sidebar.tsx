@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Home, 
   Users, 
   Calendar, 
   MessageSquare, 
@@ -12,16 +11,22 @@ import {
   Search,
   LogIn,
   X,
-  MapPin
+  MapPin,
+  Compass
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabaseClient';
-import type { Community } from '../../utils/supabaseClient';
+import type { Community, Event } from '../../utils/supabaseClient';
 import { useUI } from '../../contexts/UIContext';
 import Logo from '../common/Logo';
 
 interface CommunityWithCount extends Community {
   community_members: Array<{ count: number }>;
+}
+
+// Extended Event type for search results from Supabase
+interface EventWithCount extends Omit<Event, 'event_attendees'> {
+  event_attendees: Array<{ count: number }>;
 }
 
 interface SupabaseCommunityResponse {
@@ -38,14 +43,19 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
   const { signOut, profile, user } = useAuth();
   const { isMobile } = useUI();
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchType, setSearchType] = useState<'communities' | 'events'>('communities');
   const [searchResults, setSearchResults] = useState<CommunityWithCount[]>([]);
+  const [eventSearchResults, setEventSearchResults] = useState<EventWithCount[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [communities, setCommunities] = useState<Community[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const isActive = (path: string): boolean => {
-    return location.pathname === path;
+    if (path === '/communities') {
+      return location.pathname === '/' || location.pathname === '/communities';
+    }
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 
   useEffect(() => {
@@ -54,21 +64,40 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
     const performSearch = async () => {
       if (!searchTerm.trim()) {
         setSearchResults([]);
+        setEventSearchResults([]);
         return;
       }
 
       setIsSearching(true);
       try {
-        const { data, error } = await supabase
-          .from('communities')
-          .select('*, community_members(count)')
-          .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
-          .limit(5);
+        if (searchType === 'communities') {
+          const { data, error } = await supabase
+            .from('communities')
+            .select('*, community_members(count)')
+            .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+            .limit(5);
 
-        if (error) throw error;
-        setSearchResults(data as CommunityWithCount[] || []);
+          if (error) throw error;
+          setSearchResults(data as CommunityWithCount[] || []);
+          setEventSearchResults([]);
+        } else {
+          const { data, error } = await supabase
+            .from('events')
+            .select(`
+              *,
+              communities (id, name),
+              event_attendees (count)
+            `)
+            .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+            .gte('start_time', new Date().toISOString())
+            .limit(5);
+
+          if (error) throw error;
+          setEventSearchResults(data as EventWithCount[] || []);
+          setSearchResults([]);
+        }
       } catch (error) {
-        console.error('Error searching communities:', error);
+        console.error(`Error searching ${searchType}:`, error);
       } finally {
         setIsSearching(false);
       }
@@ -80,12 +109,13 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
     } else {
       setShowSearchResults(false);
       setSearchResults([]);
+      setEventSearchResults([]);
     }
 
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [searchTerm]);
+  }, [searchTerm, searchType]);
 
   useEffect(() => {
     if (user) {
@@ -132,10 +162,14 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
     }
   };
 
-  const handleSearchSelect = (communityId: string) => {
+  const handleSearchSelect = (id: string, type: 'community' | 'event') => {
     setSearchTerm('');
     setShowSearchResults(false);
-    navigate(`/community/${communityId}`);
+    if (type === 'community') {
+      navigate(`/community/${id}`);
+    } else {
+      navigate(`/event/${id}`);
+    }
   };
 
   if (isLoading) {
@@ -143,7 +177,7 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
       <motion.div 
         initial={{ x: isMobile ? -280 : 0 }}
         animate={{ x: 0 }}
-        className={`fixed top-0 left-0 h-full w-[280px] bg-secondary border-r border-surface-blur backdrop-blur-lg z-10 ${
+        className={`fixed top-0 left-0 h-full w-[280px] bg-accent-5 border-r border-accent-1/20 backdrop-blur-lg z-10 ${
           isMobile ? 'transform transition-transform' : ''
         }`}
       >
@@ -158,7 +192,7 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
     <motion.div 
       initial={{ x: isMobile ? -280 : 0 }}
       animate={{ x: 0 }}
-      className={`fixed top-0 left-0 h-full w-[280px] bg-secondary border-r border-surface-blur backdrop-blur-lg z-10 ${
+      className={`fixed top-0 left-0 h-full w-[280px] bg-accent-5 border-r border-accent-1/20 backdrop-blur-lg z-10 ${
         isMobile ? 'transform transition-transform' : ''
       }`}
     >
@@ -168,11 +202,34 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
         </div>
         
         <div className="relative mb-6">
-          <Search className="absolute left-3 top-3 text-text-secondary" size={18} />
+          <div className="flex gap-2 mb-3">
+            <button
+              className={`px-3 py-1 rounded-full text-xs ${
+                searchType === 'communities' 
+                  ? 'bg-accent-1 text-white' 
+                  : 'bg-white/60 text-accent-2'
+              }`}
+              onClick={() => setSearchType('communities')}
+            >
+              Communities
+            </button>
+            <button
+              className={`px-3 py-1 rounded-full text-xs ${
+                searchType === 'events' 
+                  ? 'bg-accent-1 text-white' 
+                  : 'bg-white/60 text-accent-2'
+              }`}
+              onClick={() => setSearchType('events')}
+            >
+              Events
+            </button>
+          </div>
+          
+          <Search className="absolute left-3 top-3 text-accent-2" size={18} />
           <input 
             type="text" 
-            placeholder="Search communities..." 
-            className="input-neon w-full pl-10"
+            placeholder={`Search ${searchType}...`} 
+            className="input-neon w-full pl-10 bg-white/80 text-accent-2 placeholder-accent-2/60"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
@@ -182,7 +239,7 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
           />
           {searchTerm && (
             <button
-              className="absolute right-3 top-3 text-text-secondary hover:text-accent-1"
+              className="absolute right-3 top-3 text-accent-2 hover:text-accent-3"
               onClick={() => setSearchTerm('')}
             >
               <X size={18} />
@@ -190,27 +247,27 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
           )}
 
           {showSearchResults && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-secondary border border-surface-blur rounded-xl shadow-lg overflow-hidden z-50">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white/90 border border-accent-1/20 rounded-xl shadow-lg overflow-hidden z-50">
               {isSearching ? (
-                <div className="p-4 text-center text-text-secondary">
+                <div className="p-4 text-center text-accent-2">
                   Searching...
                 </div>
-              ) : searchResults.length > 0 ? (
+              ) : searchType === 'communities' && searchResults.length > 0 ? (
                 <div className="max-h-[300px] overflow-y-auto">
                   {searchResults.map(community => (
                     <button
                       key={community.id}
-                      className="w-full p-3 hover:bg-surface-blur flex items-start gap-3 text-left"
-                      onClick={() => handleSearchSelect(community.id)}
+                      className="w-full p-3 hover:bg-accent-5/50 flex items-start gap-3 text-left"
+                      onClick={() => handleSearchSelect(community.id, 'community')}
                     >
                       <div className="flex-1">
                         <div className="font-bold text-accent-1">{community.name}</div>
                         {community.description && (
-                          <div className="text-sm text-text-secondary line-clamp-1">
+                          <div className="text-sm text-accent-2 line-clamp-1">
                             {community.description}
                           </div>
                         )}
-                        <div className="flex items-center gap-2 mt-1 text-xs text-text-secondary">
+                        <div className="flex items-center gap-2 mt-1 text-xs text-accent-2">
                           <Users size={12} />
                           <span>{community.community_members?.[0]?.count || 0} members</span>
                           {community.city && (
@@ -225,9 +282,39 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
                     </button>
                   ))}
                 </div>
+              ) : searchType === 'events' && eventSearchResults.length > 0 ? (
+                <div className="max-h-[300px] overflow-y-auto">
+                  {eventSearchResults.map(event => (
+                    <button
+                      key={event.id}
+                      className="w-full p-3 hover:bg-accent-5/50 flex items-start gap-3 text-left"
+                      onClick={() => handleSearchSelect(event.id, 'event')}
+                    >
+                      <div className="flex-1">
+                        <div className="font-bold text-accent-1">{event.title}</div>
+                        {event.description && (
+                          <div className="text-sm text-accent-2 line-clamp-1">
+                            {event.description}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 mt-1 text-xs text-accent-2">
+                          <Calendar size={12} />
+                          <span>{new Date(event.start_time).toLocaleDateString()}</span>
+                          {event.communities && (
+                            <>
+                              <span>•</span>
+                              <Users size={12} />
+                              <span>{event.communities.name}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               ) : searchTerm && (
-                <div className="p-4 text-center text-text-secondary">
-                  No communities found
+                <div className="p-4 text-center text-accent-2">
+                  No {searchType} found
                 </div>
               )}
             </div>
@@ -235,21 +322,28 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
         </div>
         
         <nav className="space-y-2 mb-6">
-          <Link to="/" className={`nav-item ${isActive('/') ? 'active' : ''}`}>
-            <Home size={20} />
-            <span>Discover</span>
+          <h3 className="text-xs text-accent-2/70 uppercase tracking-wider font-semibold px-2 mb-1">Discover</h3>
+          
+          <Link to="/communities" className={`nav-item ${isActive('/communities') ? 'active font-bold' : 'text-accent-2 font-semibold'}`}>
+            <Compass size={20} />
+            <span>Communities</span>
           </Link>
+          
+          <Link to="/events" className={`nav-item ${isActive('/events') ? 'active font-bold' : 'text-accent-2 font-semibold'}`}>
+            <Calendar size={20} />
+            <span>Events</span>
+          </Link>
+          
           {user && (
             <>
-              <Link to="/dashboard" className={`nav-item ${isActive('/dashboard') ? 'active' : ''}`}>
+              <h3 className="text-xs text-accent-2/70 uppercase tracking-wider font-semibold px-2 mb-1 mt-4">Personal</h3>
+              
+              <Link to="/dashboard" className={`nav-item ${isActive('/dashboard') ? 'active font-bold' : 'text-accent-2 font-semibold'}`}>
                 <Users size={20} />
                 <span>My Communities</span>
               </Link>
-              <Link to="/events" className={`nav-item ${isActive('/events') ? 'active' : ''}`}>
-                <Calendar size={20} />
-                <span>Events</span>
-              </Link>
-              <Link to="/messages" className={`nav-item ${isActive('/messages') ? 'active' : ''}`}>
+              
+              <Link to="/messages" className={`nav-item ${isActive('/messages') ? 'active font-bold' : 'text-accent-2 font-semibold'}`}>
                 <MessageSquare size={20} />
                 <span>Messages</span>
               </Link>
@@ -257,22 +351,22 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
           )}
         </nav>
         
-        <div className="border-t border-surface-blur pt-6 mt-6">
+        <div className="border-t border-accent-1/20 pt-6 mt-6">
           {user ? (
             <>
               <button 
-                className="nav-item w-full" 
+                className="nav-item w-full text-accent-2 font-semibold hover:text-accent-3" 
                 onClick={toggleNotifications}
               >
                 <Bell size={20} />
                 <span>Notifications</span>
               </button>
-              <Link to="/settings" className="nav-item">
+              <Link to="/settings" className="nav-item text-accent-2 font-semibold hover:text-accent-3">
                 <Settings size={20} />
                 <span>Settings</span>
               </Link>
               <button 
-                className="nav-item w-full text-error"
+                className="nav-item w-full text-error font-semibold"
                 onClick={() => signOut()}
               >
                 <LogOut size={20} />
@@ -280,7 +374,7 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
               </button>
             </>
           ) : (
-            <Link to="/auth" className="nav-item text-accent-1">
+            <Link to="/auth" className="nav-item text-accent-1 font-bold">
               <LogIn size={20} />
               <span>Sign In</span>
             </Link>
@@ -290,7 +384,7 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
         {profile && (
           <Link
             to={`/profile/${profile.username}`}
-            className="absolute bottom-20 left-5 right-5 glass-panel p-4 flex items-center gap-3 hover:border-accent-1 transition-all cursor-pointer"
+            className="absolute bottom-20 left-5 right-5 bg-white/90 p-4 flex items-center gap-3 hover:bg-white transition-all cursor-pointer rounded-xl border border-accent-1/30 shadow-md"
           >
             <img
               src={profile.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${profile.username}`}
@@ -298,26 +392,28 @@ const Sidebar: React.FC<SidebarProps> = ({ toggleNotifications }) => {
               className="w-10 h-10 rounded-full border-2 border-accent-1"
             />
             <div>
-              <div className="font-bold">{profile.username}</div>
-              <div className="text-sm text-text-secondary">Member</div>
+              <div className="font-bold text-accent-2">{profile.username}</div>
+              <div className="text-sm text-accent-2/80">Member</div>
             </div>
           </Link>
         )}
 
-        <div className="communities-list mt-6">
-          {communities.map(community => (
-            <Link
-              key={community.id}
-              to={`/community/${community.id}`}
-              className="community-item p-3 hover:bg-surface-blur block"
-            >
-              <h3 className="font-bold">{community.name}</h3>
-              {community.description && (
-                <p className="text-sm text-text-secondary">{community.description}</p>
-              )}
-            </Link>
-          ))}
-        </div>
+        {user && communities.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-xs text-accent-2/70 uppercase tracking-wider font-semibold px-2 mb-2">My Communities</h3>
+            <div className="communities-list max-h-[300px] overflow-y-auto space-y-1">
+              {communities.map(community => (
+                <Link
+                  key={community.id}
+                  to={`/community/${community.id}`}
+                  className="block rounded-lg p-2 hover:bg-white/60 transition-colors text-accent-2"
+                >
+                  <h3 className="font-bold line-clamp-1">{community.name}</h3>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       
       <div className="absolute bottom-5 left-5 right-5">

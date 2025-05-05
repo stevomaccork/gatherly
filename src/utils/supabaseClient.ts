@@ -72,6 +72,10 @@ export interface Community {
     discord?: string;
   } | null;
   community_members?: Array<{ count: number }>;
+  community_members_count?: number;
+  community_categories?: Array<{
+    categories: Category;
+  }>;
 }
 
 export type Thread = {
@@ -119,6 +123,18 @@ export type Event = {
   max_attendees: number | null;
   calendar_link: string | null;
   is_private: boolean;
+  communities?: {
+    id: string;
+    name: string;
+  };
+  event_attendees?: Array<{
+    profile_id: string;
+    status: string;
+  }>;
+  profiles?: {
+    username: string;
+    avatar_url: string | null;
+  };
 };
 
 export type EventAttendee = {
