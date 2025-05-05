@@ -1,16 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Users, MessageSquare, ChevronLeft, Bell, Video, Globe, 
-  Facebook, Twitter, Instagram, MessageCircle
+  Facebook, Twitter, Instagram, MessageCircle, MapPin, Tag,
+  Image as ImageIcon, X, ArrowLeft, ArrowRight, Share2
 } from 'lucide-react';
 import { supabase, joinCommunity, leaveCommunity, checkMembership } from '../utils/supabaseClient';
 import type { Community, Thread as BaseThread, Event as BaseEvent } from '../utils/supabaseClient';
 import AdminPanel from '../components/community/AdminPanel';
 import ThreadForm from '../components/thread/ThreadForm';
 import EventForm from '../components/event/EventForm';
+import SocialShareBar from '../components/common/SocialShareBar';
 import { useAuth } from '../contexts/AuthContext';
+// Import Swiper React components and styles
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Pagination } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/pagination';
 
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -28,6 +35,7 @@ interface SocialLinks {
 // Update Community type to include social links
 interface ExtendedCommunity extends Community {
   social_links?: SocialLinks;
+  media?: string[]; // Array of image URLs
 }
 
 // Extended Thread type with count properties from Supabase queries
@@ -59,6 +67,16 @@ const CommunityPage: React.FC = () => {
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [messageContent, setMessageContent] = useState('');
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  // States for the mailing list feature
+  const [showMailingListModal, setShowMailingListModal] = useState(false);
+  const [emailInput, setEmailInput] = useState('');
+  const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
+  const [emailSubmissionSuccess, setEmailSubmissionSuccess] = useState(false);
+  // Related communities state
+  const [relatedCommunities, setRelatedCommunities] = useState<Community[]>([]);
+  const [isLoadingRelated, setIsLoadingRelated] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -80,6 +98,66 @@ const CommunityPage: React.FC = () => {
     }
   }, [community?.id, user]);
 
+  // Add mock media data for demo purposes
+  useEffect(() => {
+    if (community && !community.media) {
+      setCommunity(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          media: [
+            'https://source.unsplash.com/random/800x600?community',
+            'https://source.unsplash.com/random/800x600?event',
+            'https://source.unsplash.com/random/800x600?meetup',
+            'https://source.unsplash.com/random/800x600?people',
+            'https://source.unsplash.com/random/800x600?group',
+            'https://source.unsplash.com/random/800x600?gathering'
+          ]
+        };
+      });
+    }
+  }, [community]);
+
+  // Add SEO metadata
+  useEffect(() => {
+    if (community) {
+      // Set page title
+      document.title = `${community.name} | Gatherly`;
+      
+      // Set meta description
+      let metaDescription = document.querySelector('meta[name="description"]');
+      if (!metaDescription) {
+        metaDescription = document.createElement('meta');
+        metaDescription.setAttribute('name', 'description');
+        document.head.appendChild(metaDescription);
+      }
+      metaDescription.setAttribute('content', community.description || `Join ${community.name} on Gatherly`);
+      
+      // Set Open Graph tags
+      updateOpenGraphTag('og:title', `${community.name} | Gatherly`);
+      updateOpenGraphTag('og:description', community.description || `Join ${community.name} on Gatherly`);
+      updateOpenGraphTag('og:image', community.cover_image || '');
+      updateOpenGraphTag('og:url', window.location.href);
+      updateOpenGraphTag('og:type', 'website');
+    }
+    
+    // Cleanup on component unmount
+    return () => {
+      document.title = 'Gatherly'; // Reset title
+    };
+  }, [community]);
+  
+  // Helper function to create or update Open Graph tags
+  const updateOpenGraphTag = (property: string, content: string) => {
+    let ogTag = document.querySelector(`meta[property="${property}"]`);
+    if (!ogTag) {
+      ogTag = document.createElement('meta');
+      ogTag.setAttribute('property', property);
+      document.head.appendChild(ogTag);
+    }
+    ogTag.setAttribute('content', content);
+  };
+
   const checkAdminStatus = async () => {
     try {
       if (!user || !community?.id) return;
@@ -100,7 +178,12 @@ const CommunityPage: React.FC = () => {
 
   const fetchCommunityData = async () => {
     try {
-      let query = supabase.from('communities').select('*');
+      let query = supabase.from('communities').select(`
+        *,
+        community_categories (
+          categories (*)
+        )
+      `);
       
       // If the ID looks like a UUID, query directly
       if (UUID_REGEX.test(id!)) {
@@ -118,6 +201,21 @@ const CommunityPage: React.FC = () => {
       if (!data) {
         navigate('/404');
         return;
+      }
+      
+      // Mock media data for demo purposes - replace with real data when available
+      // In production, you would store media URLs in a separate table and query them
+      if (!data.media) {
+        data.media = [
+          'https://source.unsplash.com/random/800x600?community',
+          'https://source.unsplash.com/random/800x600?event',
+          'https://source.unsplash.com/random/800x600?meetup',
+          'https://source.unsplash.com/random/800x600?people',
+          'https://source.unsplash.com/random/800x600?group',
+          'https://source.unsplash.com/random/800x600?gathering',
+          'https://source.unsplash.com/random/800x600?conference',
+          'https://source.unsplash.com/random/800x600?workshop'
+        ];
       }
       
       setCommunity(data);
@@ -281,6 +379,42 @@ const CommunityPage: React.FC = () => {
     }
   };
 
+  // Handle mailing list subscription
+  const handleMailingListSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailInput.trim() || !community?.id) return;
+
+    setIsSubmittingEmail(true);
+    try {
+      // Store email in public_leads table
+      const { error } = await supabase
+        .from('public_leads')
+        .insert({
+          email: emailInput.trim(),
+          community_id: community.id,
+          source: 'mailing_list',
+          created_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+      
+      // Show success message
+      setEmailSubmissionSuccess(true);
+      setEmailInput('');
+      
+      // Close the modal after 2 seconds
+      setTimeout(() => {
+        setShowMailingListModal(false);
+        setEmailSubmissionSuccess(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Error submitting email:', error);
+      alert('Failed to submit your email. Please try again.');
+    } finally {
+      setIsSubmittingEmail(false);
+    }
+  };
+
   const renderSocialLinks = () => {
     if (!community?.social_links) return null;
 
@@ -334,6 +468,209 @@ const CommunityPage: React.FC = () => {
     );
   };
 
+  // Simple custom lightbox component
+  const ImageLightbox = () => {
+    if (!isLightboxOpen || !community?.media) return null;
+    
+    const handleNext = () => {
+      setPhotoIndex((prevIndex) => 
+        prevIndex === community.media!.length - 1 ? 0 : prevIndex + 1
+      );
+    };
+    
+    const handlePrev = () => {
+      setPhotoIndex((prevIndex) => 
+        prevIndex === 0 ? community.media!.length - 1 : prevIndex - 1
+      );
+    };
+    
+    // Handle keyboard navigation
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (!isLightboxOpen) return;
+        
+        if (e.key === 'ArrowRight') handleNext();
+        if (e.key === 'ArrowLeft') handlePrev();
+        if (e.key === 'Escape') setIsLightboxOpen(false);
+      };
+      
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isLightboxOpen]);
+    
+    return (
+      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <button 
+          className="absolute top-4 right-4 text-white hover:text-accent-1 transition-colors"
+          onClick={() => setIsLightboxOpen(false)}
+        >
+          <X size={24} />
+        </button>
+        
+        <button
+          className="absolute left-4 text-white hover:text-accent-1 transition-colors"
+          onClick={handlePrev}
+        >
+          <ArrowLeft size={32} />
+        </button>
+        
+        <div className="relative max-w-4xl max-h-[80vh]">
+          <img 
+            src={community.media[photoIndex]} 
+            alt={`${community.name} - Gallery Image ${photoIndex + 1}`}
+            className="max-w-full max-h-[80vh] object-contain"
+          />
+          <div className="absolute bottom-0 left-0 right-0 text-center text-white py-2 text-sm bg-black/40">
+            {photoIndex + 1} / {community.media.length}
+          </div>
+        </div>
+        
+        <button
+          className="absolute right-4 text-white hover:text-accent-1 transition-colors"
+          onClick={handleNext}
+        >
+          <ArrowRight size={32} />
+        </button>
+      </div>
+    );
+  };
+
+  // Fetch related communities based on shared topics and location
+  const fetchRelatedCommunities = async () => {
+    if (!community) return;
+    
+    setIsLoadingRelated(true);
+    try {
+      // Get category IDs from current community
+      const categoryIds = community.community_categories?.map(c => c.categories.id) || [];
+      if (categoryIds.length === 0 && !community.city && !community.country) return;
+      
+      let query = supabase
+        .from('communities')
+        .select(`
+          *,
+          community_categories(categories(*)),
+          community_members(count)
+        `)
+        .neq('id', community.id) // Exclude current community
+        .limit(5);
+      
+      // Filter by categories if available
+      if (categoryIds.length > 0) {
+        // To find communities with similar categories, we need to search in the junction table
+        const { data: communitiesByCategory } = await supabase
+          .from('community_categories')
+          .select('community_id')
+          .in('category_id', categoryIds);
+        
+        const communityIds = communitiesByCategory?.map(c => c.community_id) || [];
+        if (communityIds.length > 0) {
+          query = query.in('id', communityIds);
+        }
+      }
+      
+      // Additional filters by location if available
+      if (community.country) {
+        query = query.eq('country', community.country);
+      }
+      
+      if (community.city) {
+        query = query.eq('city', community.city);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      setRelatedCommunities(data || []);
+    } catch (error) {
+      console.error('Error fetching related communities:', error);
+    } finally {
+      setIsLoadingRelated(false);
+    }
+  };
+
+  // Fetch related communities when main community data loads
+  useEffect(() => {
+    if (community) {
+      fetchRelatedCommunities();
+    }
+  }, [community?.id]);
+
+  // Handle joining a related community
+  const handleJoinRelatedCommunity = async (communityId: string) => {
+    if (!user) {
+      navigate('/auth', { state: { from: `/community/${communityId}` } });
+      return;
+    }
+
+    try {
+      await joinCommunity(communityId, user.id);
+      // Refresh related communities to update the UI
+      fetchRelatedCommunities();
+    } catch (error) {
+      console.error('Error joining community:', error);
+      alert('Error joining community');
+    }
+  };
+
+  // Render a related community card
+  const renderRelatedCommunityCard = (relatedCommunity: Community) => {
+    return (
+      <div key={relatedCommunity.id} className="glass-panel p-3 flex items-center gap-3 mb-3 hover:border-accent-1 transition-all">
+        <Link to={`/community/${relatedCommunity.id}`} className="flex-shrink-0">
+          <div 
+            className="w-12 h-12 rounded-full bg-cover bg-center"
+            style={{ 
+              backgroundImage: `url(${relatedCommunity.cover_image || `https://api.dicebear.com/7.x/shapes/svg?seed=${relatedCommunity.name}`})` 
+            }}
+            aria-label={`${relatedCommunity.name} cover image`}
+          />
+        </Link>
+        
+        <div className="flex-1 min-w-0">
+          <Link 
+            to={`/community/${relatedCommunity.id}`} 
+            className="font-bold text-sm hover:text-accent-1 transition-colors truncate block"
+          >
+            {relatedCommunity.name}
+          </Link>
+          <div className="text-xs text-text-secondary flex items-center">
+            <Users size={12} className="mr-1" />
+            <span>{relatedCommunity.community_members?.length || 0} members</span>
+          </div>
+        </div>
+        
+        <button 
+          className="btn-primary py-1 px-3 text-xs"
+          onClick={() => handleJoinRelatedCommunity(relatedCommunity.id)}
+        >
+          Join
+        </button>
+      </div>
+    );
+  };
+
+  // Function to handle native sharing
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${community?.name} | Gatherly`,
+          text: `Check out ${community?.name} on Gatherly!`,
+          url: window.location.href,
+        });
+      } catch (error) {
+        console.log('Error sharing:', error);
+      }
+    } else {
+      // Fallback for browsers that don't support the Web Share API
+      // Just open the modal with our existing SocialShareBar
+      document.querySelector('.glass-panel .social-share-bar')?.scrollIntoView({
+        behavior: 'smooth'
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -358,6 +695,7 @@ const CommunityPage: React.FC = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      className="relative" // Add relative positioning for floating button
     >
       <Link to="/" className="flex items-center text-accent-1 hover:underline mb-4">
         <ChevronLeft size={16} />
@@ -373,6 +711,33 @@ const CommunityPage: React.FC = () => {
           <div className="flex justify-between items-end">
             <div>
               <h1 className="font-heading text-3xl sm:text-4xl text-white mb-2">{community.name}</h1>
+              
+              {/* Tags container */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {/* Location tag */}
+                {community.city && community.country && (
+                  <Link 
+                    to={`/?city=${encodeURIComponent(community.city)}&country=${encodeURIComponent(community.country)}`}
+                    className="inline-flex items-center px-3 py-1 rounded-full bg-surface-blur/30 text-white text-sm hover:bg-accent-1 hover:text-primary transition-all"
+                  >
+                    <MapPin size={14} className="mr-1" />
+                    {community.city}, {community.country}
+                  </Link>
+                )}
+                
+                {/* Topic tags */}
+                {community.community_categories && community.community_categories.map(({ categories }) => (
+                  <Link 
+                    key={categories.id}
+                    to={`/?category=${encodeURIComponent(categories.id)}`}
+                    className="inline-flex items-center px-3 py-1 rounded-full bg-surface-blur/30 text-white text-sm hover:bg-accent-1 hover:text-primary transition-all"
+                  >
+                    <Tag size={14} className="mr-1" />
+                    {categories.name}
+                  </Link>
+                ))}
+              </div>
+              
               <div className="flex items-center gap-4">
                 {renderSocialLinks()}
                 <div className="flex items-center text-text-secondary">
@@ -390,29 +755,57 @@ const CommunityPage: React.FC = () => {
                   >
                     {isMember ? 'Leave Community' : 'Join Community'}
                   </button>
-                  {!isMember && community?.created_by && (
-                    <button 
-                      className="btn-icon"
-                      onClick={() => setShowMessageDialog(true)}
-                    >
-                      <MessageCircle size={18} />
-                    </button>
+                  {!isMember && (
+                    <>
+                      {community?.created_by && (
+                        <button 
+                          className="btn-icon"
+                          onClick={() => setShowMessageDialog(true)}
+                        >
+                          <MessageCircle size={18} />
+                        </button>
+                      )}
+                      <button 
+                        className="btn-secondary"
+                        onClick={() => setShowMailingListModal(true)}
+                      >
+                        Join Mailing List
+                      </button>
+                    </>
                   )}
                   <button className="btn-icon">
                     <Bell size={18} />
                   </button>
                 </>
               ) : (
-                <Link to="/auth" className="btn-primary">
-                  Sign in to Join
-                </Link>
+                <div className="flex gap-2">
+                  <Link to="/auth" className="btn-primary">
+                    Sign in to Join
+                  </Link>
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => setShowMailingListModal(true)}
+                  >
+                    Join Mailing List
+                  </button>
+                </div>
               )}
             </div>
           </div>
         </div>
       </div>
       
-      <div className="mb-8 flex border-b border-surface-blur">
+      {/* Social Share Bar */}
+      <div className="glass-panel p-3 mb-6 flex justify-center sm:justify-start social-share-bar">
+        <SocialShareBar 
+          url={window.location.href}
+          title={`Join ${community.name} on Gatherly`}
+          description={community.description || ''}
+        />
+      </div>
+      
+      {/* Desktop Tabs - Hide on mobile */}
+      <div className="mb-8 hidden md:flex border-b border-surface-blur">
         <button 
           className={`pb-3 px-4 text-sm font-bold relative ${activeTab === 'overview' ? 'text-accent-1' : 'text-text-secondary'}`}
           onClick={() => setActiveTab('overview')}
@@ -420,7 +813,7 @@ const CommunityPage: React.FC = () => {
           Overview
           {activeTab === 'overview' && (
             <motion.div 
-              layoutId="activeTab"
+              layoutId="activeTabDesktop"
               className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
             />
           )}
@@ -432,7 +825,7 @@ const CommunityPage: React.FC = () => {
           Events
           {activeTab === 'events' && (
             <motion.div 
-              layoutId="activeTab"
+              layoutId="activeTabDesktop"
               className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
             />
           )}
@@ -444,7 +837,7 @@ const CommunityPage: React.FC = () => {
           Discussions
           {activeTab === 'discussions' && (
             <motion.div 
-              layoutId="activeTab"
+              layoutId="activeTabDesktop"
               className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
             />
           )}
@@ -456,11 +849,84 @@ const CommunityPage: React.FC = () => {
           Members
           {activeTab === 'members' && (
             <motion.div 
-              layoutId="activeTab"
+              layoutId="activeTabDesktop"
               className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
             />
           )}
         </button>
+      </div>
+      
+      {/* Mobile Swipeable Tabs - Show only on mobile */}
+      <div className="md:hidden mb-8">
+        <Swiper
+          modules={[Pagination]}
+          spaceBetween={0}
+          slidesPerView={4}
+          pagination={{ clickable: true }}
+          onSlideChange={(swiper) => {
+            const tabs = ['overview', 'events', 'discussions', 'members'];
+            setActiveTab(tabs[swiper.activeIndex]);
+          }}
+          initialSlide={['overview', 'events', 'discussions', 'members'].indexOf(activeTab)}
+          className="community-tabs-swiper"
+        >
+          <SwiperSlide>
+            <button 
+              className={`w-full pb-3 px-4 text-sm font-bold relative ${activeTab === 'overview' ? 'text-accent-1' : 'text-text-secondary'}`}
+              onClick={() => setActiveTab('overview')}
+            >
+              Overview
+              {activeTab === 'overview' && (
+                <motion.div 
+                  layoutId="activeTabMobile"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
+                />
+              )}
+            </button>
+          </SwiperSlide>
+          <SwiperSlide>
+            <button 
+              className={`w-full pb-3 px-4 text-sm font-bold relative ${activeTab === 'events' ? 'text-accent-1' : 'text-text-secondary'}`}
+              onClick={() => setActiveTab('events')}
+            >
+              Events
+              {activeTab === 'events' && (
+                <motion.div 
+                  layoutId="activeTabMobile"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
+                />
+              )}
+            </button>
+          </SwiperSlide>
+          <SwiperSlide>
+            <button 
+              className={`w-full pb-3 px-4 text-sm font-bold relative ${activeTab === 'discussions' ? 'text-accent-1' : 'text-text-secondary'}`}
+              onClick={() => setActiveTab('discussions')}
+            >
+              Discussions
+              {activeTab === 'discussions' && (
+                <motion.div 
+                  layoutId="activeTabMobile"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
+                />
+              )}
+            </button>
+          </SwiperSlide>
+          <SwiperSlide>
+            <button 
+              className={`w-full pb-3 px-4 text-sm font-bold relative ${activeTab === 'members' ? 'text-accent-1' : 'text-text-secondary'}`}
+              onClick={() => setActiveTab('members')}
+            >
+              Members
+              {activeTab === 'members' && (
+                <motion.div 
+                  layoutId="activeTabMobile"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-1" 
+                />
+              )}
+            </button>
+          </SwiperSlide>
+        </Swiper>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -471,6 +937,52 @@ const CommunityPage: React.FC = () => {
                 <h3 className="text-xl font-heading mb-4">About this community</h3>
                 <p className="text-text-secondary">{community.description}</p>
               </div>
+              
+              {/* Image Gallery Card */}
+              {community.media && community.media.length > 0 && (
+                <div className="glass-panel p-6 mb-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-heading">
+                      <ImageIcon size={20} className="inline mr-2" />
+                      Image Gallery
+                    </h3>
+                    <span className="text-sm text-text-secondary">
+                      {community.media.length} {community.media.length === 1 ? 'photo' : 'photos'}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {community.media.slice(0, 6).map((image, index) => (
+                      <div 
+                        key={index}
+                        className="aspect-square overflow-hidden rounded-lg cursor-pointer hover:opacity-90 transition-all"
+                        onClick={() => {
+                          setPhotoIndex(index);
+                          setIsLightboxOpen(true);
+                        }}
+                      >
+                        <img 
+                          src={image} 
+                          alt={`${community.name} gallery image ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {community.media.length > 6 && (
+                    <button 
+                      className="btn-secondary w-full mt-4"
+                      onClick={() => {
+                        setPhotoIndex(0);
+                        setIsLightboxOpen(true);
+                      }}
+                    >
+                      View All Photos ({community.media.length})
+                    </button>
+                  )}
+                </div>
+              )}
               
               <div className="glass-panel p-6">
                 <div className="flex justify-between items-center mb-4">
@@ -744,6 +1256,16 @@ const CommunityPage: React.FC = () => {
             )}
           </div>
           
+          {/* Related Communities Widget */}
+          {relatedCommunities.length > 0 && (
+            <div className="glass-panel p-6 mb-6">
+              <h3 className="text-xl font-heading mb-4">Related Communities</h3>
+              <div className="space-y-3">
+                {relatedCommunities.map(relatedCommunity => renderRelatedCommunityCard(relatedCommunity))}
+              </div>
+            </div>
+          )}
+          
           <div className="glass-panel p-6">
             <h3 className="text-xl font-heading mb-4">Community Rules</h3>
             <ol className="list-decimal list-inside text-text-secondary space-y-2 pl-2">
@@ -801,6 +1323,71 @@ const CommunityPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Mailing List Modal */}
+      {showMailingListModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="glass-panel p-6 w-full max-w-md">
+            <h3 className="text-xl font-heading mb-2">Join {community.name} Mailing List</h3>
+            <p className="text-text-secondary mb-4">
+              Stay updated with the latest events, discussions, and announcements from this community.
+            </p>
+            
+            {emailSubmissionSuccess ? (
+              <div className="text-center py-6">
+                <div className="text-accent-1 text-lg mb-2">Success!</div>
+                <p className="text-text-secondary">
+                  Your email has been added to the mailing list.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleMailingListSubmit}>
+                <div className="mb-4">
+                  <label htmlFor="email" className="block mb-2 text-sm">Email Address</label>
+                  <input 
+                    type="email"
+                    id="email"
+                    className="input-neon w-full"
+                    placeholder="your@email.com"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    className="btn-secondary flex-1"
+                    onClick={() => setShowMailingListModal(false)}
+                    disabled={isSubmittingEmail}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary flex-1"
+                    disabled={isSubmittingEmail || !emailInput.trim()}
+                  >
+                    {isSubmittingEmail ? 'Submitting...' : 'Subscribe'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Custom Image Lightbox */}
+      <ImageLightbox />
+
+      {/* Mobile Floating Share Button - Show only on mobile */}
+      <button
+        className="fixed right-4 bottom-16 z-40 btn-icon-floating md:hidden"
+        onClick={handleShare}
+        aria-label="Share this community"
+      >
+        <Share2 size={20} />
+      </button>
     </motion.div>
   );
 };

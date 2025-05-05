@@ -97,4 +97,48 @@ body {
       box-shadow: 0 0 0 0 rgba(23, 190, 187, 0);
     }
   }
+
+  /* Add a class for the floating action button */
+  .btn-icon-floating {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background-color: var(--color-accent-1);
+    color: var(--color-primary);
+    border: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s, background-color 0.2s;
+  }
+
+  .btn-icon-floating:hover {
+    transform: translateY(-2px);
+    background-color: var(--color-accent-2);
+  }
+
+  .btn-icon-floating:active {
+    transform: translateY(0);
+  }
+
+  /* Styles for community tabs swiper */
+  .community-tabs-swiper {
+    padding-bottom: 25px;
+    border-bottom: 1px solid var(--color-surface-blur);
+  }
+
+  .community-tabs-swiper .swiper-pagination {
+    bottom: 0;
+  }
+
+  .community-tabs-swiper .swiper-pagination-bullet {
+    background-color: var(--color-text-secondary);
+    opacity: 0.5;
+  }
+
+  .community-tabs-swiper .swiper-pagination-bullet-active {
+    background-color: var(--color-accent-1);
+    opacity: 1;
+  }
 }
